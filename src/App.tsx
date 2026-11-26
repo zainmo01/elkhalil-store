@@ -222,12 +222,24 @@ function SearchBox() {
 
 function Header() {
     const cart = useCart();
+    const { pathname } = useLocation();
+    const { setSelectedId, setCat } = useShop();
+    const links = [
+        { to: '/', label: 'الرئيسية' },
+        { to: '/categories', label: 'الأقسام' },
+        { to: '/orders', label: 'طلباتي' },
+        { to: '/prescription', label: 'ارفع روشتة' },
+        { to: '/account', label: 'حسابي' },
+    ];
     return <header className="kh-header">
         <div className="kh-header-bar">
             <Link to="/" className="kh-brand">
                 <img src={logo} alt="لوجو صيدلية الخليل" className="kh-brand-logo" />
                 <span className="kh-brand-name">صيدلية <b>الخليل</b></span>
             </Link>
+            <nav className="kh-topnav" aria-label="التنقل الرئيسي">
+                {links.map((l) => <Link key={l.to} to={l.to} className={pathname === l.to ? 'is-active' : ''} onClick={() => { setSelectedId(null); if (l.to === '/') setCat('الكل'); window.scrollTo(0, 0); }}>{l.label}</Link>)}
+            </nav>
             <SearchBox />
             <div className="kh-header-icons">
                 <Link to="/account" className="kh-icon-btn" aria-label="حسابي"><Icon name="user" /></Link>
@@ -1235,6 +1247,7 @@ function AdminRx() {
 }
 
 export function App() {
+    const { pathname } = useLocation();
     const cartState = useCartState();
     const adminState = useAdminState();
     const [adminKey, setAdminKeyState] = useState<string>(() => {
@@ -1266,7 +1279,7 @@ export function App() {
                 <div className="kh-app">
                 <div id="kh-top" style={{ height: 0, overflow: 'hidden' }} aria-hidden="true" />
                 <Header />
-                <main className="kh-main">
+                <main className={`kh-main${pathname === '/' || pathname === '/categories' ? ' kh-main-wide' : ' kh-main-narrow'}`}>
                 {userPhone === null
                     ? <LoginPage onLogin={setUserPhone} />
                     : selectedId !== null
