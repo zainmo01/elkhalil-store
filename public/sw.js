@@ -1,50 +1,13 @@
-// El-Khalil store service worker: offline shell + fast repeat visits.
-const CACHE = 'elkhalil-v4';
-
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html', './manifest.webmanifest']))
-    );
-    self.skipWaiting();
-});
-
+// El-Khalil store service worker: online-first, no caching.
+// Exists so the app is installable; every request goes straight to the network
+// so products, orders and prices are never served stale.
+self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+        caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).then(() => self.clients.claim())
     );
-    self.clients.claim();
 });
-
 self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url);
-    // Never cache API/backend calls.
-    if (url.hostname.includes('supabase')) return;
     if (event.request.method !== 'GET') return;
-
-    // Network-first for pages, cache-first for assets.
-    if (event.request.mode === 'navigate') {
-        event.respondWith(
-            fetch(event.request, { cache: 'no-cache' })
-                .then((res) => {
-                    const copy = res.clone();
-                    caches.open(CACHE).then((cache) => cache.put('./index.html', copy));
-                    return res;
-                })
-                .catch(() => caches.match('./index.html'))
-        );
-        return;
-    }
-    event.respondWith(
-        caches.match(event.request).then(
-            (hit) =>
-                hit ||
-                fetch(event.request).then((res) => {
-                    if (res.ok && url.origin === self.location.origin) {
-                        const copy = res.clone();
-                        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-                    }
-                    return res;
-                })
-        )
-    );
+    event.respondWith(fetch(event.request));
 });
