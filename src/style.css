@@ -1526,7 +1526,7 @@ button, input, textarea, select { font-family: inherit; }
 .kh-drv-row .kh-confirm { width: auto; padding: 0 20px; margin: 0; }
 
 .kh-userbar { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.kh-userbar.kh-ub-mobile { padding: 0 18px 10px; background: #05483c; color: #fff; font-size: 13px; }
+.kh-userbar.kh-ub-mobile { padding: 10px 18px 12px; background: #05483c; color: #fff; font-size: 13px; }
 .kh-ub-item { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.12); border-radius: 16px; padding: 4px 11px; line-height: 1.4; }
 .kh-ub-pts { color: #f2c94c; }
 .kh-ub-pts b { font-size: 14px; }
