@@ -44,7 +44,19 @@ export async function placeOrder(input: {
     return Number(data);
 }
 
-// Submit a prescription: photo to private storage, row to prescriptions.
+// Shrink the photo in the browser so it uploads fast on mobile data.
+async function toDataUrl(file: File): Promise<string> {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale);
+    c.height = Math.round(bmp.height * scale);
+    c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.72);
+}
+
+// Submit a prescription: the photo is stored in the private prescriptions table
+// (no public read access); only the admin key can read it back.
 export async function submitRx(input: {
     phone: string;
     file: File;
@@ -53,18 +65,13 @@ export async function submitRx(input: {
     notes: string;
 }): Promise<void> {
     if (!supabase) return; // local fallback: UI just shows the success screen
-    const ext = (input.file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('rx-photos').upload(path, input.file, {
-        contentType: input.file.type || 'image/jpeg',
-    });
-    if (upErr) throw new Error(upErr.message);
-    const { error } = await supabase.from('prescriptions').insert({
-        phone: input.phone,
-        photo_path: path,
-        want_substitutes: input.want_substitutes,
-        want_call: input.want_call,
-        notes: input.notes,
+    const photo = await toDataUrl(input.file);
+    const { error } = await supabase.rpc('submit_rx', {
+        p_phone: input.phone,
+        p_photo: photo,
+        p_alt: input.want_substitutes,
+        p_call: input.want_call,
+        p_notes: input.notes,
     });
     if (error) throw new Error(error.message);
 }

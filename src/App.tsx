@@ -1229,7 +1229,7 @@ function AdminRx() {
             const done = r.status === 'done';
             return <div className="kh-card kh-rx-card" key={r.id}>
                 {r.photo_url
-                    ? <a href={r.photo_url} target="_blank" rel="noreferrer"><img className="kh-rx-thumb" src={r.photo_url} alt="صورة روشته" loading="lazy" decoding="async" width="96" height="128" /></a>
+                    ? <a href={r.photo_url} onClick={(e) => { e.preventDefault(); fetch(r.photo_url!).then((x) => x.blob()).then((bl) => window.open(URL.createObjectURL(bl), '_blank')); }}><img className="kh-rx-thumb" src={r.photo_url} alt="صورة روشته" loading="lazy" decoding="async" width="96" height="128" /></a>
                     : <span className="kh-rx-thumb" />}
                 <div className="kh-prod-info">
                     <strong><bdi dir="ltr">{r.phone}</bdi></strong>
