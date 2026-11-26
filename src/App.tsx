@@ -1087,13 +1087,6 @@ function AdminGate({ children }: { children: React.ReactNode }) {
     const phone = useUserPhone();
     const [key, setKey] = useAdminKey();
     const [draft, setDraft] = useState('');
-    if (phone !== ADMIN_PHONE) {
-        return <div className="kh-empty">
-            <p className="kh-success-title">الصفحة دي للأدمن بس</p>
-            <Paragraph>لوحة التحكم بتظهر لرقم الأدمن فقط.</Paragraph>
-            <Link className="kh-biglink" to="/">رجوع للمتجر</Link>
-        </div>;
-    }
     if (SUPABASE_READY && !key) {
         return <div className="kh-empty">
             <p className="kh-success-title">مفتاح الأدمن</p>
@@ -1530,7 +1523,7 @@ export function App() {
                 <div id="kh-top" style={{ height: 0, overflow: 'hidden' }} aria-hidden="true" />
                 <Header />
                 <main className={`kh-main${pathname === '/' || pathname === '/categories' ? ' kh-main-wide' : ' kh-main-narrow'}`}>
-                {userPhone === null && (loginOpen || !['/', '/categories', '/notifications'].includes(pathname))
+                {userPhone === null && (loginOpen || !['/', '/categories', '/notifications'].includes(pathname) && !pathname.startsWith('/admin'))
                     ? <LoginPage onLogin={(p) => { setUserPhone(p); setLoginOpen(false); }} onCancel={loginOpen ? () => { pendingAdd.current = null; setLoginOpen(false); } : undefined} />
                     : selectedId !== null
                     ? <ProductPage id={selectedId} />
@@ -1552,7 +1545,7 @@ export function App() {
                     </Routes>}
                 </main>
                 <BottomNav />
-                {userPhone === ADMIN_PHONE && <div className="kh-admin-entry">
+                {<div className="kh-admin-entry">
                     <Link to="/admin">دخول الأدمن — لوحة التحكم</Link>
                 </div>}
                 <Closing>صيدلية الخليل — اطلب أونلاين والتوصيل لباب البيت. نوفمبر 2026.</Closing>
