@@ -595,7 +595,14 @@ function OrdersPage() {
             : <div className="kh-orders">
                 {orders.map((o) => <div key={o.id} className="kh-order">
                     <div className="kh-order-top"><strong>{o.id}</strong><span>{fmtTime(o.at)}</span></div>
-                    <p>{o.items.map((i) => `${i.name} ×${i.qty}`).join('، ')}</p>
+                    <div className="kh-order-items">{o.items.map((i, k) => {
+                        const p = (i as { id?: string }).id ? BY_ID.get((i as { id?: string }).id as string) : [...BY_ID.values()].find((q) => q.n === i.name);
+                        return <div className="kh-oi" key={k}>
+                            <span className="kh-oi-img">{p ? <img src={photoFor(p.c, p.i)} alt="" loading="lazy" /> : <Icon name="pill" size={28} />}</span>
+                            <span className="kh-oi-name">{i.name}</span>
+                            <span className="kh-oi-qty">×{i.qty.toLocaleString('en-US')}</span>
+                        </div>;
+                    })}</div>
                     <div className="kh-order-bot"><span>{o.payment}</span><b>{egp(o.total)}</b></div>
                 </div>)}
             </div>}
@@ -1011,7 +1018,7 @@ function CartPage() {
                 setOrderId(oid);
                 try {
                     const prev = loadOrders();
-                    localStorage.setItem('kh_orders', JSON.stringify([{ id: oid, at: new Date().toISOString(), phone: payload.phone, total: payload.total, payment: payload.payment, items: payload.items.map((x) => ({ name: x.name, qty: x.qty })) }, ...prev].slice(0, 50)));
+                    localStorage.setItem('kh_orders', JSON.stringify([{ id: oid, at: new Date().toISOString(), phone: payload.phone, total: payload.total, payment: payload.payment, items: payload.items.map((x) => ({ id: x.id, name: x.name, qty: x.qty })) }, ...prev].slice(0, 50)));
                 } catch {}
                 cart.clear();
                 window.scrollTo(0, 0);
@@ -1247,7 +1254,7 @@ function AdminOrderDetail() {
             {order.items.map((it) => {
                 const p = BY_ID.get(it.id);
                 return <div className="kh-cart-row" key={it.id}>
-                    <span className="kh-line-photo kh-line-tile">{p ? <CatTile c={p.c} size={26} /> : null}</span>
+                    <span className="kh-aph">{p ? <img src={photoFor(p.c, p.i)} alt="" /> : null}</span>
                     <div className="kh-cart-info">
                         <span className="kh-card-name">{it.name}</span>
                         <span className="kh-card-unit">الكمية: {it.qty.toLocaleString('en-US')}</span>
