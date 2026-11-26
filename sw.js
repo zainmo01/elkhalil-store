@@ -1,5 +1,5 @@
 // El-Khalil store service worker: offline shell + fast repeat visits.
-const CACHE = 'elkhalil-v1';
+const CACHE = 'elkhalil-v2';
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
