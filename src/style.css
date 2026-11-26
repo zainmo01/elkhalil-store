@@ -1290,7 +1290,7 @@ p { margin: 8px 0; line-height: 1.75; }
 /* ===== Desktop layout ===== */
 
 @media (min-width: 900px) {
-    .kh-app { max-width: 1140px; }
+    .kh-app { max-width: none; }
 
     .kh-main { padding: 20px 24px 40px; }
 
@@ -1324,7 +1324,7 @@ p { margin: 8px 0; line-height: 1.75; }
 
     .kh-cat-icon { border-radius: 6px; }
 
-    .kh-grid { grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .kh-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
 
     .kh-bottomnav { display: none; }
 
@@ -1334,8 +1334,8 @@ p { margin: 8px 0; line-height: 1.75; }
 }
 
 @media (min-width: 600px) and (max-width: 899px) {
-    .kh-app { max-width: 720px; }
-    .kh-grid { grid-template-columns: repeat(3, 1fr); }
+    .kh-app { max-width: none; }
+    .kh-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 }
 
 /* scroll anchors: clear the viewer chrome (~62px) and the sticky app header */
