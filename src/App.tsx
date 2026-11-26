@@ -28,14 +28,13 @@ function fmtPrice(value: number) {
     return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
 
-const DELIVERY_FEE = 30;
+const DELIVERY_FEE = 0; // delivery is free on everything, 24 hours
 const ADMIN_PHONE = '01000000000'; // fictional demo admin number
-const FREE_DELIVERY_MIN = 500;
 
 const SLIDES = [
     { tag: 'خدمة 24 ساعة', title: 'دواءك يوصلك لباب البيت', sub: 'اطلب من تطبيق الخليل وهنجهز طلبك ونوصله بسرعة', cta: 'تسوق دلوقتي', to: '/#grid', photo: hero, icon: 'pill' as const },
     { tag: 'بالروشتة', title: 'صوّر الروشتة وسيب الباقي علينا', sub: 'الصيدلي هيراجعها ويتواصل معاك لتأكيد الطلب', cta: 'ارفع الروشتة', to: '/prescription', photo: null, icon: 'camera' as const },
-    { tag: 'عرض التوصيل', title: 'توصيل مجاني للطلبات فوق 500 جنيه', sub: 'وفّر رسوم التوصيل على طلباتك الكبيرة', cta: 'ابدأ التسوق', to: '/#grid', photo: null, icon: 'truck' as const },
+    { tag: 'عرض التوصيل', title: 'توصيل مجاني على كل طلب', sub: 'على مدار 24 ساعة، من غير حد أدنى ولا رسوم', cta: 'ابدأ التسوق', to: '/#grid', photo: null, icon: 'truck' as const },
 ];
 
 function egp(value: number) {
@@ -373,14 +372,21 @@ function CategoryRow() {
 }
 
 function RxBanner() {
-    return <Link to="/prescription" className="kh-rx-banner">
-        <span className="kh-rx-banner-icon"><Icon name="camera" size={30} /></span>
-        <div className="kh-rx-banner-text">
-            <strong>ارفع الروشتة وسيب الباقي علينا</strong>
-            <span>صوّرها وابعتهالنا والصيدلي هيتواصل معاك</span>
+    return <section className="kh-svc">
+        <Link to="/prescription" className="kh-rx-banner">
+            <span className="kh-rx-banner-icon"><Icon name="camera" size={30} /></span>
+            <div className="kh-rx-banner-text">
+                <strong>ارفع الروشتة وسيب الباقي علينا</strong>
+                <span>صوّرها وابعتهالنا والصيدلي هيتواصل معاك</span>
+            </div>
+            <span className="kh-rx-banner-btn">ارفع الآن</span>
+        </Link>
+        <div className="kh-svc-foot">
+            <Icon name="truck" size={20} />
+            <strong>توصيل مجاني 24 ساعة</strong>
+            <span>لأي طلب، لحد باب البيت</span>
         </div>
-        <span className="kh-rx-banner-btn">ارفع الآن</span>
-    </Link>;
+    </section>;
 }
 
 const GRID_PAGE = 48;
@@ -399,7 +405,6 @@ function Shop() {
         <HeroCarousel />
         <CategoryRow />
         <RxBanner />
-        <OffersBanner />
         <CartBar />
         <div className="kh-grid-head" id="kh-grid">
             <p className="kh-section">{cat === 'الكل' ? 'الأكثر مبيعاً' : cat} <span className="kh-count">({shown.length.toLocaleString('en-US')} صنف)</span></p>
@@ -463,17 +468,6 @@ function OrdersPage() {
                     <div className="kh-order-bot"><span>{o.payment}</span><b>{egp(o.total)}</b></div>
                 </div>)}
             </div>}
-    </div>;
-}
-
-function OffersBanner() {
-    return <div className="kh-offers" role="region" aria-label="العروض">
-        <div className="kh-offers-tag">عروض</div>
-        <div className="kh-offers-body">
-            <strong>توصيل مجاني لطلبك</strong>
-            <span>لأي طلب فوق {FREE_DELIVERY_MIN.toLocaleString('en-US')} جنيه، لحد باب البيت</span>
-        </div>
-        <button type="button" className="kh-offers-cta" onClick={() => document.getElementById('kh-grid')?.scrollIntoView({ block: 'start', behavior: 'smooth' })}>تسوق الآن</button>
     </div>;
 }
 
@@ -612,7 +606,7 @@ function ProductPage({ id }: { id: string }) {
             <div><dt>كود الصنف</dt><dd><bdi>{product.i}</bdi></dd></div>
             <div><dt>السعر</dt><dd>{egp(product.p)}</dd></div>
             <div><dt>التوفر</dt><dd>متاح للطلب من الصيدلية</dd></div>
-            <div><dt>التوصيل</dt><dd>{egp(DELIVERY_FEE)} — مجاني فوق {FREE_DELIVERY_MIN.toLocaleString('en-US')} ج.م</dd></div>
+            <div><dt>التوصيل</dt><dd>مجاني — 24 ساعة</dd></div>
         </dl>
         <div className="kh-pdp-note"><Icon name="stetho" size={20} /> لأي استفسار عن الاستخدام أو البدائل، الصيدلي بيرد عليك بعد الطلب.</div>
 
@@ -787,7 +781,7 @@ function CartPage() {
         </div>;
     }
     const subtotal = items.reduce((sum, item) => sum + item.product.p * item.qty, 0);
-    const delivery = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
+    const delivery = DELIVERY_FEE;
     const ready = name.trim() !== '' && phone.trim() !== '' && address.trim() !== '';
     return <>
         <ScrollTop />
@@ -811,7 +805,6 @@ function CartPage() {
             <div><span>التوصيل</span><span>{delivery === 0 ? 'مجاني' : egp(delivery)}</span></div>
             <div className="kh-total"><span>الإجمالي</span><span>{egp(subtotal + delivery)}</span></div>
         </div>
-        {delivery > 0 && <Caption>التوصيل مجاني للطلبات فوق {egp(FREE_DELIVERY_MIN)}.</Caption>}
         <p className="kh-section">بيانات التوصيل</p>
         <label className="kh-field">
             <span>الاسم</span>
@@ -1071,7 +1064,7 @@ function AdminOrderDetail() {
     if (!order) return <div className="kh-empty"><Paragraph>{SUPABASE_READY ? 'جاري التحميل…' : 'الأوردر ده مش موجود.'}</Paragraph></div>;
     const status = order.status;
     const subtotal = order.items.reduce((sum, it) => sum + it.price * it.qty, 0);
-    const delivery = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
+    const delivery = DELIVERY_FEE;
     const isLast = STATUS_FLOW.indexOf(status) === STATUS_FLOW.length - 1;
     const advance = () => {
         const next = STATUS_FLOW[Math.min(STATUS_FLOW.indexOf(status) + 1, STATUS_FLOW.length - 1)];

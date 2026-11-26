@@ -1406,3 +1406,9 @@ p { margin: 8px 0; line-height: 1.75; }
 .kh-order-top span, .kh-order-bot span { color: var(--kh-muted); font-size: 12px; }
 .kh-order p { margin: 6px 0; font-size: 13px; }
 .kh-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 30px 10px; color: var(--kh-muted); }
+
+.kh-svc { margin-top: 16px; border-radius: 10px; overflow: hidden; background: var(--kh-plum); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15); }
+.kh-svc .kh-rx-banner { margin: 0; border-radius: 0; box-shadow: none; }
+.kh-svc-foot { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #f4f6f9; color: #0f172a; font-size: 13px; border-top: 3px solid #475569; }
+.kh-svc-foot strong { font-weight: 800; }
+.kh-svc-foot span { color: var(--kh-muted); font-size: 12px; margin-inline-start: auto; }
