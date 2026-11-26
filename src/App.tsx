@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime } from './lib/api';
 import type { OrderRow, RxRow } from './lib/api';
 
@@ -399,6 +399,7 @@ function Shop() {
         <HeroCarousel />
         <CategoryRow />
         <RxBanner />
+        <OffersBanner />
         <CartBar />
         <div className="kh-grid-head" id="kh-grid">
             <p className="kh-section">{cat === 'الكل' ? 'الأكثر مبيعاً' : cat} <span className="kh-count">({shown.length.toLocaleString('en-US')} صنف)</span></p>
@@ -418,17 +419,62 @@ function Shop() {
 }
 
 function BottomNav() {
-    const cart = useCart();
-    return <nav className="kh-bottomnav">
-        <Link to="/" className="kh-bn-item"><Icon name="home" /><span>الرئيسية</span></Link>
-        <Link to="/categories" className="kh-bn-item"><Icon name="grid" /><span>الأقسام</span></Link>
-        <Link to="/cart" className="kh-bn-item">
-            <Icon name="receipt" />
-            {cart.count > 0 && <b className="kh-badge">{cart.count.toLocaleString('en-US')}</b>}
-            <span>الطلبات</span>
-        </Link>
-        <Link to="/account" className="kh-bn-item"><Icon name="user" /><span>حسابي</span></Link>
+    const { setSelectedId, setCat } = useShop();
+    const { pathname } = useLocation();
+    const { selectedId } = useShop();
+    const items = [
+        { to: '/', label: 'الرئيسية', icon: 'home' as const, on: pathname === '/' && selectedId === null, reset: true },
+        { to: '/categories', label: 'الأقسام', icon: 'grid' as const, on: pathname === '/categories' && selectedId === null },
+        { to: '/orders', label: 'الطلبات', icon: 'receipt' as const, on: pathname === '/orders' && selectedId === null },
+        { to: '/account', label: 'حسابي', icon: 'user' as const, on: pathname === '/account' && selectedId === null },
+    ];
+    return <nav className="kh-bottomnav" aria-label="التنقل الرئيسي">
+        {items.map((it) => <Link
+            key={it.to}
+            to={it.to}
+            className={`kh-bn-item${it.on ? ' is-active' : ''}`}
+            onClick={() => { setSelectedId(null); if (it.reset) setCat('الكل'); window.scrollTo(0, 0); }}
+        ><Icon name={it.icon} /><span>{it.label}</span></Link>)}
     </nav>;
+}
+
+type SavedOrder = { id: string; at: string; phone: string; total: number; payment: string; items: { name: string; qty: number }[] };
+function loadOrders(): SavedOrder[] {
+    try { return JSON.parse(localStorage.getItem('kh_orders') ?? '[]') as SavedOrder[]; } catch { return []; }
+}
+
+function OrdersPage() {
+    const phone = useUserPhone();
+    const navigate = useNavigate();
+    const orders = loadOrders().filter((o) => o.phone === phone);
+    return <div className="kh-catpage">
+        <ScrollTop />
+        <p className="kh-section">طلباتي</p>
+        {orders.length === 0
+            ? <div className="kh-empty">
+                <Icon name="receipt" size={44} />
+                <Paragraph>لسه معملتش أي طلب. أول ما تطلب هتلاقيه هنا.</Paragraph>
+                <button type="button" className="kh-confirm" onClick={() => navigate('/')}>ابدأ التسوق</button>
+            </div>
+            : <div className="kh-orders">
+                {orders.map((o) => <div key={o.id} className="kh-order">
+                    <div className="kh-order-top"><strong>{o.id}</strong><span>{fmtTime(o.at)}</span></div>
+                    <p>{o.items.map((i) => `${i.name} ×${i.qty}`).join('، ')}</p>
+                    <div className="kh-order-bot"><span>{o.payment}</span><b>{egp(o.total)}</b></div>
+                </div>)}
+            </div>}
+    </div>;
+}
+
+function OffersBanner() {
+    return <div className="kh-offers" role="region" aria-label="العروض">
+        <div className="kh-offers-tag">عروض</div>
+        <div className="kh-offers-body">
+            <strong>توصيل مجاني لطلبك</strong>
+            <span>لأي طلب فوق {FREE_DELIVERY_MIN.toLocaleString('en-US')} جنيه، لحد باب البيت</span>
+        </div>
+        <button type="button" className="kh-offers-cta" onClick={() => document.getElementById('kh-grid')?.scrollIntoView({ block: 'start', behavior: 'smooth' })}>تسوق الآن</button>
+    </div>;
 }
 
 function CategoriesPage() {
@@ -798,7 +844,12 @@ function CartPage() {
             };
             try {
                 const id = await placeOrder(payload);
-                setOrderId(id !== null ? `EK-${id}` : `EK-${Math.floor(1000 + Math.random() * 9000)}`);
+                const oid = id !== null ? `EK-${id}` : `EK-${Math.floor(1000 + Math.random() * 9000)}`;
+                setOrderId(oid);
+                try {
+                    const prev = loadOrders();
+                    localStorage.setItem('kh_orders', JSON.stringify([{ id: oid, at: new Date().toISOString(), phone: payload.phone, total: payload.total, payment: payload.payment, items: payload.items.map((x) => ({ name: x.name, qty: x.qty })) }, ...prev].slice(0, 50)));
+                } catch {}
                 cart.clear();
                 window.scrollTo(0, 0);
             } catch {
@@ -1231,6 +1282,7 @@ export function App() {
                         <Route path="/" element={<Shop />} />
                         <Route path="/categories" element={<CategoriesPage />} />
                         <Route path="/account" element={<AccountPage />} />
+                        <Route path="/orders" element={<OrdersPage />} />
                         <Route path="/cart" element={<CartPage />} />
                         <Route path="/prescription" element={<PrescriptionPage />} />
                         <Route path="/admin" element={<AdminGate><AdminHome /></AdminGate>} />
