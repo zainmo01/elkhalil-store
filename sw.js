@@ -1,5 +1,5 @@
 // El-Khalil store service worker: offline shell + fast repeat visits.
-const CACHE = 'elkhalil-v2';
+const CACHE = 'elkhalil-v3';
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (event) => {
     // Network-first for pages, cache-first for assets.
     if (event.request.mode === 'navigate') {
         event.respondWith(
-            fetch(event.request)
+            fetch(event.request, { cache: 'no-cache' })
                 .then((res) => {
                     const copy = res.clone();
                     caches.open(CACHE).then((cache) => cache.put('./index.html', copy));
