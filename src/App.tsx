@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { myOrders, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
+import { myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
 import type { OrderRow, RxRow, NotifRow, LoyaltyInfo } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
@@ -821,18 +821,49 @@ function ProductPage({ id }: { id: string }) {
 
 function LoginPage({ onLogin, onCancel }: { onLogin: (phone: string) => void; onCancel?: () => void }) {
     const [phone, setPhone] = useState('');
-    const phoneReady = digitsOnly(phone).length === 11;
+    const [step, setStep] = useState<'phone' | 'login' | 'register' | 'legacy'>('phone');
+    const [pass, setPass] = useState('');
+    const [pass2, setPass2] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState('');
+    const ph = digitsOnly(phone);
+    const phoneReady = ph.length === 11;
+    const reg = step === 'register' || step === 'legacy';
+    const passOk = pass.length >= 6 && (!reg || pass === pass2);
+    const next = async () => {
+        setBusy(true); setMsg('');
+        try {
+            if (step === 'phone') {
+                const st = await accountStatus(ph);
+                setStep(st === 'has' ? 'login' : st === 'legacy' ? 'legacy' : 'register');
+            } else if (reg) {
+                const r = await accountRegister(ph, pass);
+                if (r === 'ok') onLogin(ph);
+                else if (r === 'exists') { setStep('login'); setMsg('الرقم ده عنده حساب. اكتب الباسورد.'); }
+                else setMsg('الباسورد لازم يكون 6 حروف أو أرقام على الأقل.');
+            } else {
+                const r = await accountLogin(ph, pass);
+                if (r === 'ok') onLogin(ph);
+                else if (r === 'locked') setMsg('محاولات كتير غلط. جرب بعد 5 دقائق.');
+                else setMsg('الباسورد غلط.');
+            }
+        } catch { setMsg('تعذر الاتصال. جرب تاني.'); }
+        setBusy(false);
+    };
     return <div className="kh-login">
         <ScrollTop />
         <img src={logo} alt="لوجو صيدلية الخليل" className="kh-login-logo" />
         <p className="kh-login-title">صيدلية <b>الخليل</b></p>
         <p className="kh-login-sub">مرحباً بك في صيدلية الخليل</p>
-        <Paragraph>اكتب رقم موبايلك وهتدخل على طول. من غير إيميل ولا باسورد.</Paragraph>
+        <Paragraph>{step === 'phone' ? 'اكتب رقم موبايلك للدخول أو لعمل حساب جديد.'
+            : step === 'login' ? 'اكتب الباسورد بتاعك للدخول.'
+            : step === 'legacy' ? 'حسابك متسجل عندنا من قبل. اختار باسورد جديد وأكده عشان نحمي طلباتك ونقاطك.'
+            : 'حساب جديد: اختار باسورد وأكده.'}</Paragraph>
         <label className="kh-field">
             <span>رقم الموبايل</span>
             <input
                 value={phone}
-                onChange={(e) => setPhone(digitsOnly(e.target.value))}
+                onChange={(e) => { setPhone(digitsOnly(e.target.value)); setStep('phone'); setPass(''); setPass2(''); setMsg(''); }}
                 placeholder="01xxxxxxxxx"
                 inputMode="tel"
                 autoComplete="tel"
@@ -840,10 +871,20 @@ function LoginPage({ onLogin, onCancel }: { onLogin: (phone: string) => void; on
                 style={{ textAlign: 'right' }}
             />
         </label>
-        <button type="button" className="kh-confirm kh-confirm-big" disabled={!phoneReady} onClick={() => onLogin(digitsOnly(phone))}>
-            دخول
+        {step !== 'phone' && <label className="kh-field">
+            <span>الباسورد</span>
+            <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={reg ? 'new-password' : 'current-password'} dir="ltr" style={{ textAlign: 'right' }} />
+        </label>}
+        {reg && <label className="kh-field">
+            <span>تأكيد الباسورد</span>
+            <input type="password" value={pass2} onChange={(e) => setPass2(e.target.value)} autoComplete="new-password" dir="ltr" style={{ textAlign: 'right' }} />
+        </label>}
+        <button type="button" className="kh-confirm kh-confirm-big" disabled={busy || !phoneReady || (step !== 'phone' && !passOk)} onClick={next}>
+            {step === 'phone' ? 'متابعة' : reg ? 'إنشاء الحساب' : 'دخول'}
         </button>
-        <Caption>{phoneReady ? '' : 'رقم الموبايل 11 رقم وبيبدأ بـ 01.'}</Caption>
+        <Caption>{msg !== '' ? msg : !phoneReady ? 'رقم الموبايل 11 رقم وبيبدأ بـ 01.'
+            : step !== 'phone' && pass.length > 0 && pass.length < 6 ? 'الباسورد 6 حروف أو أرقام على الأقل.'
+            : reg && pass2 !== '' && pass !== pass2 ? 'الباسورد وتأكيده مش متطابقين.' : ''}</Caption>
         {onCancel && <button type="button" className="kh-biglink" onClick={onCancel}>رجوع للتصفح</button>}
     </div>;
 }
@@ -1598,9 +1639,6 @@ export function App() {
                     </Routes>}
                 </main>
                 <BottomNav />
-                {<div className="kh-admin-entry">
-                    <Link to="/admin">دخول الأدمن — لوحة التحكم</Link>
-                </div>}
                 <Closing>صيدلية الخليل — اطلب أونلاين والتوصيل لباب البيت. نوفمبر 2026.</Closing>
                 </div>
             </div>

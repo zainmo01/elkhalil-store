@@ -168,3 +168,23 @@ export async function myOrders(phone: string): Promise<MyOrder[] | null> {
     if (error || !Array.isArray(data)) return null;
     return data as MyOrder[];
 }
+
+export type AcctStatus = 'none' | 'legacy' | 'has' | 'bad';
+export async function accountStatus(phone: string): Promise<AcctStatus> {
+    if (!supabase) return 'has';
+    const { data, error } = await supabase.rpc('account_status', { p_phone: phone });
+    if (error) throw new Error('net');
+    return data as AcctStatus;
+}
+export async function accountRegister(phone: string, pass: string): Promise<string> {
+    if (!supabase) return 'ok';
+    const { data, error } = await supabase.rpc('account_register', { p_phone: phone, p_pass: pass });
+    if (error) throw new Error('net');
+    return data as string;
+}
+export async function accountLogin(phone: string, pass: string): Promise<string> {
+    if (!supabase) return 'ok';
+    const { data, error } = await supabase.rpc('account_login', { p_phone: phone, p_pass: pass });
+    if (error) throw new Error('net');
+    return data as string;
+}
