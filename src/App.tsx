@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
+import { getAnnouncement, myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
 import type { OrderRow, RxRow, NotifRow, LoyaltyInfo } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
@@ -153,6 +153,24 @@ function searchProducts(q: string, max = 8): CatalogItem[] {
         if (starts.length >= max) break;
     }
     return [...starts, ...rest].slice(0, max);
+}
+
+function AnnounceBanner() {
+    const [text, setText] = useState('');
+    React.useEffect(() => {
+        let alive = true;
+        const load = () => { getAnnouncement().then((t) => { if (alive && t !== null) setText(t.trim()); }).catch(() => {}); };
+        load();
+        const t = window.setInterval(load, 60000);
+        const vis = () => { if (document.visibilityState === 'visible') load(); };
+        document.addEventListener('visibilitychange', vis);
+        return () => { alive = false; window.clearInterval(t); document.removeEventListener('visibilitychange', vis); };
+    }, []);
+    if (text === '') return null;
+    return <div className="kh-announce" role="status" aria-live="polite">
+        <span className="kh-announce-ico" aria-hidden="true">📢</span>
+        <span className="kh-announce-text">{text}</span>
+    </div>;
 }
 
 function SearchBox() {
@@ -358,11 +376,30 @@ function AdminNotify() {
             .then(() => { setTitle(''); setBody(''); setState('ok'); notif.reload(); window.setTimeout(() => setState('idle'), 2500); })
             .catch((e) => setState(e.message === 'unauthorized' ? 'auth' : 'err'));
     };
+    const [ann, setAnn] = useState('');
+    const [annState, setAnnState] = useState<'idle' | 'busy' | 'ok' | 'cleared' | 'err'>('idle');
+    React.useEffect(() => { getAnnouncement().then((t) => { if (t !== null) setAnn(t); }).catch(() => {}); }, []);
+    const saveAnn = (text: string) => {
+        setAnnState('busy');
+        adminCall(key, 'announce-set', { text })
+            .then(() => { setAnn(text); setAnnState(text === '' ? 'cleared' : 'ok'); window.setTimeout(() => setAnnState('idle'), 2500); })
+            .catch((e) => setAnnState(e.message === 'unauthorized' ? 'err' : 'err'));
+    };
     const remove = (id: number) => { adminCall(key, 'delete-notification', { id }).then(() => notif.reload()).catch(() => {}); };
     if (state === 'auth') return <AdminKeyError />;
     return <>
         <ScrollTop />
         <AdminTabs active="notify" />
+        <p className="kh-section">إعلان أعلى الموقع</p>
+        <div className="kh-card kh-add-form">
+            <label className="kh-field"><span>نص الإعلان (بيظهر لكل الزوار فوق الموقع أول ما يفتحوه)</span>
+                <textarea value={ann} onChange={(e) => setAnn(e.target.value)} rows={3} maxLength={300} placeholder="مثال: خصم 20% على الفيتامينات لحد الجمعة" /></label>
+            <div className="kh-drv-row">
+                <button type="button" className="kh-confirm" disabled={ann.trim() === '' || annState === 'busy'} onClick={() => saveAnn(ann.trim())}>{annState === 'ok' ? '✓ اتنشر' : 'نشر الإعلان'}</button>
+                <button type="button" className="kh-biglink" disabled={annState === 'busy'} onClick={() => saveAnn('')}>{annState === 'cleared' ? '✓ اتشال' : 'شيل الإعلان'}</button>
+            </div>
+            {annState === 'err' && <Caption>تعذر الحفظ، حاول تاني.</Caption>}
+        </div>
         <p className="kh-section">نشر إشعار لكل العملاء</p>
         <div className="kh-card kh-add-form">
             <label className="kh-field"><span>عنوان الإشعار</span><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثال: خصم 20% على الفيتامينات" /></label>
@@ -1629,6 +1666,7 @@ export function App() {
             <div className="kh-file">
                 <div className="kh-app">
                 <div id="kh-top" style={{ height: 0, overflow: 'hidden' }} aria-hidden="true" />
+                <AnnounceBanner />
                 <Header />
                 <main className={`kh-main${pathname === '/' || pathname === '/categories' ? ' kh-main-wide' : ' kh-main-narrow'}`}>
                 {userPhone === null && (loginOpen || !['/', '/categories', '/notifications'].includes(pathname) && !pathname.startsWith('/admin'))

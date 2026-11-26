@@ -124,6 +124,11 @@ export async function adminCall<T = unknown>(key: string, action: string, payloa
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
         return r.data as T;
     }
+    if (action === 'announce-set') {
+        const r = await supabase.rpc('admin_announce_set', { p_key: key, p_text: String(payload.text ?? '') });
+        if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
+        return r.data as T;
+    }
     if (action === 'driver-get' || action === 'driver-set') {
         const r = action === 'driver-get'
             ? await supabase.rpc('admin_order_driver_get', { p_key: key, p_id: Number(payload.id) })
@@ -208,4 +213,11 @@ export async function accountLogin(phone: string, pass: string): Promise<string>
     const { data, error } = await supabase.rpc('account_login', { p_phone: phone, p_pass: pass });
     if (error) throw new Error('net');
     return data as string;
+}
+
+export async function getAnnouncement(): Promise<string | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc('announcement_get');
+    if (error) return null;
+    return typeof data === 'string' ? data : '';
 }
