@@ -4,24 +4,24 @@
    deep pharmacy green, white cards, mint tints, rounded-rect buttons ===== */
 
 :root {
-    --kh-green: #a855f7;
-    --kh-green-dark: #9333ea;
-    --kh-green-deep: #7e22ce;
-    --kh-plum: #2d1b3d;
-    --kh-plum-2: #4a2a6b;
-    --kh-magenta: #c026d3;
-    --kh-mint: #f1eafb;
-    --kh-mint-2: #e3d5f7;
-    --kh-bg: #f4f1f8;
-    --kh-ink: #241533;
-    --kh-muted: #7a6b8c;
-    --kh-hairline: #e6ddf0;
+    --kh-green: #334155;
+    --kh-green-dark: #1e293b;
+    --kh-green-deep: #0f172a;
+    --kh-plum: #1e293b;
+    --kh-plum-2: #334155;
+    --kh-magenta: #475569;
+    --kh-mint: #f4f6f9;
+    --kh-mint-2: #e8edf3;
+    --kh-bg: #ffffff;
+    --kh-ink: #0f172a;
+    --kh-muted: #64748b;
+    --kh-hairline: #e9eef4;
     --kh-amber: #b45309;
     --kh-amber-soft: #fff4e0;
     --kh-blue: #1d4ed8;
     --kh-blue-soft: #e3f0fd;
-    --kh-purple: #7c3aed;
-    --kh-purple-soft: #f1e9fd;
+    --kh-purple: #334155;
+    --kh-purple-soft: #f8fafc;
     --ds-ink: #1c2b28;
     --ds-hairline: #e3ece9;
     --kh-radius: 6px;
