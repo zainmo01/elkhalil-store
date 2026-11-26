@@ -1524,3 +1524,14 @@ button, input, textarea, select { font-family: inherit; }
 .kh-drv-row { display: flex; gap: 8px; }
 .kh-drv-row input { flex: 1; min-width: 0; border: 1px solid var(--kh-hairline); border-radius: 8px; padding: 10px; font-size: 15px; }
 .kh-drv-row .kh-confirm { width: auto; padding: 0 20px; margin: 0; }
+
+.kh-userbar { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.kh-userbar.kh-ub-mobile { padding: 0 18px 10px; background: #05483c; color: #fff; font-size: 13px; }
+.kh-ub-item { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.12); border-radius: 16px; padding: 4px 11px; line-height: 1.4; }
+.kh-ub-pts { color: #f2c94c; }
+.kh-ub-pts b { font-size: 14px; }
+.kh-userbar.kh-ub-desktop { display: none; }
+@media (min-width: 1000px) {
+    .kh-userbar.kh-ub-mobile { display: none; }
+    .kh-userbar.kh-ub-desktop { display: flex; color: #fff; font-size: 13.5px; margin-inline-start: auto; margin-inline-end: 24px; }
+}

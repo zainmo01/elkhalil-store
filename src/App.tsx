@@ -242,6 +242,16 @@ function Header() {
     const { pathname } = useLocation();
     const { setSelectedId, setCat } = useShop();
     const notif = React.useContext(NotifContext);
+    const userPhoneH = useUserPhone();
+    const loyH = React.useContext(LoyaltyContext).info;
+    const userChip = (cls: string) => userPhoneH ? <Link to={userPhoneH === ADMIN_PHONE ? '/admin' : '/account'} className={`kh-userbar ${cls}`} onClick={() => setSelectedId(null)}>
+        {userPhoneH === ADMIN_PHONE
+            ? <span className="kh-ub-item">وضع الأدمن</span>
+            : <>
+                <span className="kh-ub-item"><Icon name="user" size={15} /><bdi dir="ltr">{userPhoneH}</bdi></span>
+                {loyH && <span className="kh-ub-item kh-ub-pts">★ <b>{loyH.balance.toLocaleString('en-US')}</b> نقطة</span>}
+            </>}
+    </Link> : null;
     const links = [
         { to: '/', label: 'الرئيسية' },
         { to: '/categories', label: 'الأقسام' },
@@ -270,10 +280,12 @@ function Header() {
                 </Link>
             </div>
         </div>
+        {userChip('kh-ub-mobile')}
         <div className="kh-navstrip">
             <nav className="kh-topnav" aria-label="التنقل الرئيسي">
                 {links.map((l) => <Link key={l.to} to={l.to} className={pathname === l.to ? 'is-active' : ''} onClick={() => { setSelectedId(null); if (l.to === '/') setCat('الكل'); window.scrollTo(0, 0); }}>{l.label}</Link>)}
             </nav>
+            {userChip('kh-ub-desktop')}
             <span className="kh-navnote"><Icon name="truck" size={16} /> توصيل مجاني على كل الطلبات، 24 ساعة</span>
         </div>
     </header>;
