@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications } from './lib/api';
-import type { OrderRow, RxRow, NotifRow } from './lib/api';
+import { SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
+import type { OrderRow, RxRow, NotifRow, LoyaltyInfo } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
     return <p className="kh-p">{children}</p>;
@@ -71,6 +71,8 @@ function useCartState() {
             return next;
         }),
         clear: () => setCart({}),
+        replace: (c: Cart) => setCart(c),
+        raw: cart,
         items: () => Object.entries(cart).flatMap(([id, qty]) => {
             const product = BY_ID.get(id);
             return product ? [{ product, qty }] : [];
@@ -81,6 +83,7 @@ function useCartState() {
 const CartContext = React.createContext<ReturnType<typeof useCartState> | null>(null);
 type NotifState = { items: NotifRow[]; unread: number; markSeen: () => void; reload: () => void };
 const NotifContext = React.createContext<NotifState>({ items: [], unread: 0, markSeen: () => {}, reload: () => {} });
+const LoyaltyContext = React.createContext<{ info: LoyaltyInfo | null; reload: () => void }>({ info: null, reload: () => {} });
 const UserContext = React.createContext<string>('');
 const UserSetContext = React.createContext<(p: string | null) => void>(() => {});
 const ShopContext = React.createContext<{ cat: string; setCat: (c: string) => void; query: string; setQuery: (q: string) => void; selectedId: string | null; setSelectedId: (id: string | null) => void }>({ cat: 'الكل', setCat: () => {}, query: '', setQuery: () => {}, selectedId: null, setSelectedId: () => {} });
@@ -289,6 +292,43 @@ function NotificationsPage() {
         {items.map((n) => <div className="kh-card kh-notif" key={n.id}>
             <span className="kh-notif-ico"><Icon name="bell" size={20} /></span>
             <div><strong>{n.title}</strong>{n.body !== '' && <p>{n.body}</p>}<small>{fmtTime(n.created_at)}</small></div>
+        </div>)}
+    </>;
+}
+
+function AdminLoyalty() {
+    const [key] = useAdminKey();
+    const [earn, setEarn] = useState('');
+    const [val, setVal] = useState('');
+    const [custs, setCusts] = useState<{ phone: string; balance: number; orders: number }[]>([]);
+    const [state, setState] = useState<'idle' | 'ok' | 'err' | 'auth'>('idle');
+    const load = () => adminCall<{ earn_per: number; point_value: number; customers: { phone: string; balance: number; orders: number }[] }>(key, 'loyalty-get')
+        .then((d) => { setEarn(String(d.earn_per)); setVal(String(d.point_value)); setCusts(d.customers); })
+        .catch((e) => setState(e.message === 'unauthorized' ? 'auth' : 'err'));
+    React.useEffect(() => { load(); }, [key]);
+    if (state === 'auth') return <AdminKeyError />;
+    const num = (s: string) => Number(digitsOnly(s.replace(/[^0-9.٠-٩]/g, '')) === '' ? NaN : s.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
+    const ok = num(earn) > 0 && num(val) >= 0;
+    return <>
+        <ScrollTop />
+        <AdminTabs active="loyalty" />
+        <p className="kh-section">إعدادات نقاط الولاء</p>
+        <div className="kh-card kh-add-form">
+            <label className="kh-field"><span>كل كام جنيه من الأوردر = نقطة واحدة</span><input value={earn} onChange={(e) => setEarn(e.target.value)} inputMode="decimal" dir="ltr" style={{ textAlign: 'right' }} /></label>
+            <label className="kh-field"><span>قيمة النقطة الواحدة بالجنيه عند الاستبدال</span><input value={val} onChange={(e) => setVal(e.target.value)} inputMode="decimal" dir="ltr" style={{ textAlign: 'right' }} /></label>
+            <button type="button" className="kh-confirm kh-confirm-big" disabled={!ok} onClick={() => {
+                adminCall(key, 'loyalty-set', { earn_per: num(earn), point_value: num(val) })
+                    .then(() => { setState('ok'); window.setTimeout(() => setState('idle'), 2000); load(); })
+                    .catch((e) => setState(e.message === 'unauthorized' ? 'auth' : 'err'));
+            }}>{state === 'ok' ? '✓ اتحفظ' : 'احفظ الإعدادات'}</button>
+            {state === 'err' && <Caption>تعذر الحفظ، حاول تاني.</Caption>}
+            <Caption>النقاط بتتضاف للعميل لما الأوردر يتحول لـ "اتسلم".</Caption>
+        </div>
+        <p className="kh-section">نقاط العملاء ({custs.length.toLocaleString('en-US')})</p>
+        {custs.length === 0 && <Caption>لسه مفيش عملاء معاهم نقاط.</Caption>}
+        {custs.map((c) => <div className="kh-card kh-prod-row" key={c.phone}>
+            <div className="kh-prod-info"><span className="kh-card-name"><bdi dir="ltr">{c.phone}</bdi></span><span className="kh-card-unit">{c.orders.toLocaleString('en-US')} أوردر</span></div>
+            <strong>{c.balance.toLocaleString('en-US')} نقطة</strong>
         </div>)}
     </>;
 }
@@ -577,6 +617,17 @@ function CategoriesPage() {
     </div>;
 }
 
+function LoyaltyCard() {
+    const { info } = React.useContext(LoyaltyContext);
+    if (!info) return null;
+    return <div className="kh-card kh-loyalty">
+        <span className="kh-loy-title">نقاط الولاء</span>
+        <strong className="kh-loy-bal">{info.balance.toLocaleString('en-US')} <small>نقطة</small></strong>
+        <span className="kh-loy-val">قيمتها {egp(info.balance * info.point_value)}</span>
+        <Caption>بتكسب نقطة لكل {info.earn_per.toLocaleString('en-US')} جنيه من قيمة الأوردر بعد ما يتسلم، والنقطة بـ {egp(info.point_value)} وانت بتدفع.</Caption>
+    </div>;
+}
+
 function AccountPage() {
     const phone = useUserPhone();
     const setPhone = React.useContext(UserSetContext);
@@ -587,6 +638,7 @@ function AccountPage() {
             <strong>حسابي</strong>
             <span className="kh-account-phone"><bdi dir="ltr">{phone}</bdi></span>
         </div>
+        <LoyaltyCard />
         {phone === ADMIN_PHONE && <Link className="kh-confirm kh-confirm-big" to="/admin">لوحة تحكم الأدمن</Link>}
         <button type="button" className="kh-biglink kh-logout" onClick={() => setPhone(null)}><Icon name="logout" size={18} /> تسجيل الخروج</button>
     </div>;
@@ -732,7 +784,7 @@ function ProductPage({ id }: { id: string }) {
     </div>;
 }
 
-function LoginPage({ onLogin }: { onLogin: (phone: string) => void }) {
+function LoginPage({ onLogin, onCancel }: { onLogin: (phone: string) => void; onCancel?: () => void }) {
     const [phone, setPhone] = useState('');
     const phoneReady = digitsOnly(phone).length === 11;
     return <div className="kh-login">
@@ -757,6 +809,7 @@ function LoginPage({ onLogin }: { onLogin: (phone: string) => void }) {
             دخول
         </button>
         <Caption>{phoneReady ? '' : 'رقم الموبايل 11 رقم وبيبدأ بـ 01.'}</Caption>
+        {onCancel && <button type="button" className="kh-biglink" onClick={onCancel}>رجوع للتصفح</button>}
     </div>;
 }
 
@@ -862,6 +915,8 @@ function CartPage() {
     const [orderId, setOrderId] = useState<string | null>(null);
     const [placing, setPlacing] = useState(false);
     const [orderErr, setOrderErr] = useState('');
+    const loy = React.useContext(LoyaltyContext);
+    const [usePts, setUsePts] = useState(false);
 
     if (orderId) {
         return <div className="kh-success">
@@ -880,6 +935,10 @@ function CartPage() {
     }
     const subtotal = items.reduce((sum, item) => sum + item.product.p * item.qty, 0);
     const delivery = DELIVERY_FEE;
+    const pv = loy.info?.point_value ?? 0;
+    const redeemPts = usePts && loy.info && pv > 0 ? Math.min(loy.info.balance, Math.ceil(subtotal / pv)) : 0;
+    const discount = Math.min(redeemPts * pv, subtotal);
+    const payable = subtotal + delivery - discount;
     const ready = name.trim() !== '' && phone.trim() !== '' && address.trim() !== '';
     return <>
         <ScrollTop />
@@ -901,8 +960,13 @@ function CartPage() {
         <div className="kh-totals">
             <div><span>المنتجات</span><span>{egp(subtotal)}</span></div>
             <div><span>التوصيل</span><span>{delivery === 0 ? 'مجاني' : egp(delivery)}</span></div>
-            <div className="kh-total"><span>الإجمالي</span><span>{egp(subtotal + delivery)}</span></div>
+            {discount > 0 && <div><span>خصم النقاط ({redeemPts.toLocaleString('en-US')} نقطة)</span><span>- {egp(discount)}</span></div>}
+            <div className="kh-total"><span>الإجمالي</span><span>{egp(payable)}</span></div>
         </div>
+        {loy.info && loy.info.balance > 0 && pv > 0 && <label className="kh-card kh-redeem">
+            <input type="checkbox" checked={usePts} onChange={(e) => setUsePts(e.target.checked)} />
+            <span>استخدم نقاطي: عندك {loy.info.balance.toLocaleString('en-US')} نقطة = {egp(loy.info.balance * pv)}</span>
+        </label>}
         <p className="kh-section">بيانات التوصيل</p>
         <label className="kh-field">
             <span>الاسم</span>
@@ -934,7 +998,15 @@ function CartPage() {
                 total: subtotal + delivery,
             };
             try {
-                const id = await placeOrder(payload);
+                let id: number | null;
+                if (userPhone !== '' && userPhone !== ADMIN_PHONE) {
+                    const r = await placeOrder2({ ...payload, account: userPhone, redeem: redeemPts });
+                    id = r === null ? null : r.id;
+                    if (r) payload.total = r.total;
+                    loy.reload();
+                } else {
+                    id = await placeOrder(payload);
+                }
                 const oid = id !== null ? `EK-${id}` : `EK-${Math.floor(1000 + Math.random() * 9000)}`;
                 setOrderId(oid);
                 try {
@@ -948,7 +1020,7 @@ function CartPage() {
             } finally {
                 setPlacing(false);
             }
-        }}>{placing ? 'جاري إرسال الطلب…' : `تأكيد الطلب — ${egp(subtotal + delivery)}`}</button>
+        }}>{placing ? 'جاري إرسال الطلب…' : `تأكيد الطلب — ${egp(payable)}`}</button>
         <Caption>{ready ? 'بالضغط على تأكيد بيتم تسجيل طلبك وهنتواصل معاك.' : 'املأ الاسم والموبايل والعنوان عشان تكمّل.'}</Caption>
     </>;
 }
@@ -1049,6 +1121,7 @@ function AdminTabs({ active }: { active: string }) {
         { to: '/admin/products', label: 'المنتجات', key: 'products' },
         { to: '/admin/rx', label: 'الروشتات', key: 'rx' },
         { to: '/admin/notify', label: 'الإشعارات', key: 'notify' },
+        { to: '/admin/loyalty', label: 'نقاط الولاء', key: 'loyalty' },
     ];
     return <>
         <div className="kh-chips kh-admin-tabs">
@@ -1343,6 +1416,18 @@ function applyOverrides(list: { id: string; price: number }[]): boolean {
     return changed;
 }
 
+const SESSION_KEY = 'kh_session_phone';
+function readSession(): string | null {
+    try { const v = localStorage.getItem(SESSION_KEY); if (v) return v; } catch {}
+    try { const m = document.cookie.match(/(?:^|; )kh_sp=(\d{10,15})/); if (m) return m[1]; } catch {}
+    return null;
+}
+function writeSession(p: string | null) {
+    try { p === null ? localStorage.removeItem(SESSION_KEY) : localStorage.setItem(SESSION_KEY, p); } catch {}
+    try { document.cookie = p === null ? 'kh_sp=; Max-Age=0; path=/' : `kh_sp=${p}; Max-Age=315360000; path=/; SameSite=Lax`; } catch {}
+    if (p !== null) { try { navigator.storage?.persist?.(); } catch {} }
+}
+
 export function App() {
     const { pathname } = useLocation();
     const [, setPriceTick] = useState(0);
@@ -1387,19 +1472,53 @@ export function App() {
         try { k === '' ? localStorage.removeItem('kh_admin_key') : localStorage.setItem('kh_admin_key', k); } catch {}
         setAdminKeyState(k);
     };
-    const [userPhone, setUserPhoneRaw] = useState<string | null>(() => {
-        try { return localStorage.getItem('kh_session_phone'); } catch { return null; }
-    });
+    const [userPhone, setUserPhoneRaw] = useState<string | null>(() => readSession());
     // Session lives in localStorage: survives refresh and app updates, ends only on explicit logout.
     const setUserPhone = (p: string | null) => {
-        try { p === null ? localStorage.removeItem('kh_session_phone') : localStorage.setItem('kh_session_phone', p); } catch {}
+        writeSession(p);
         setUserPhoneRaw(p);
+        if (p === null) { cartState.replace({}); cartLoaded.current = false; }
     };
+    const [loginOpen, setLoginOpen] = useState(false);
+    const pendingAdd = useRef<{ id: string; qty: number } | null>(null);
+    const [loyalty, setLoyalty] = useState<LoyaltyInfo | null>(null);
+    const reloadLoyalty = React.useCallback(() => {
+        if (!userPhone || userPhone === ADMIN_PHONE) { setLoyalty(null); return; }
+        loyaltyInfo(userPhone).then(setLoyalty).catch(() => {});
+    }, [userPhone]);
+    React.useEffect(() => { reloadLoyalty(); }, [reloadLoyalty]);
+    // Cart is saved per account on the server and restored on any device.
+    const cartLoaded = useRef(false);
+    React.useEffect(() => {
+        if (!userPhone || userPhone === ADMIN_PHONE) return;
+        let dead = false;
+        cartLoaded.current = false;
+        loadCart(userPhone).then((srv) => {
+            if (dead) return;
+            cartState.replace({ ...srv, ...(pendingAdd.current ? { [pendingAdd.current.id]: (srv[pendingAdd.current.id] ?? 0) + pendingAdd.current.qty } : {}) });
+            pendingAdd.current = null;
+            cartLoaded.current = true;
+        }).catch(() => { cartLoaded.current = true; });
+        return () => { dead = true; };
+    }, [userPhone]);
+    React.useEffect(() => {
+        if (!userPhone || userPhone === ADMIN_PHONE || !cartLoaded.current) return;
+        const t = window.setTimeout(() => { saveCart(userPhone, cartState.raw).catch(() => {}); }, 600);
+        return () => window.clearTimeout(t);
+    }, [cartState.raw, userPhone]);
+    const guardedCart = useMemo(() => ({
+        ...cartState,
+        add: (id: string, qty = 1) => {
+            if (userPhone === null) { pendingAdd.current = { id, qty }; setLoginOpen(true); return; }
+            cartState.add(id, qty);
+        },
+    }), [cartState, userPhone]);
     const [cat, setCat] = useState('الكل');
     const [query, setQuery] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const shopState = useMemo(() => ({ cat, setCat, query, setQuery, selectedId, setSelectedId }), [cat, query, selectedId]);
-    return <CartContext.Provider value={cartState}>
+    return <CartContext.Provider value={guardedCart}>
+        <LoyaltyContext.Provider value={{ info: loyalty, reload: reloadLoyalty }}>
         <NotifContext.Provider value={notifState}>
         <AdminKeyContext.Provider value={[adminKey, setAdminKey]}>
         <AdminContext.Provider value={adminState}>
@@ -1411,8 +1530,8 @@ export function App() {
                 <div id="kh-top" style={{ height: 0, overflow: 'hidden' }} aria-hidden="true" />
                 <Header />
                 <main className={`kh-main${pathname === '/' || pathname === '/categories' ? ' kh-main-wide' : ' kh-main-narrow'}`}>
-                {userPhone === null
-                    ? <LoginPage onLogin={setUserPhone} />
+                {userPhone === null && (loginOpen || !['/', '/categories', '/notifications'].includes(pathname))
+                    ? <LoginPage onLogin={(p) => { setUserPhone(p); setLoginOpen(false); }} onCancel={loginOpen ? () => { pendingAdd.current = null; setLoginOpen(false); } : undefined} />
                     : selectedId !== null
                     ? <ProductPage id={selectedId} />
                     : <Routes>
@@ -1427,11 +1546,12 @@ export function App() {
                         <Route path="/admin/order/:id" element={<AdminGate><AdminOrderDetail /></AdminGate>} />
                         <Route path="/admin/products" element={<AdminGate><AdminProducts /></AdminGate>} />
                         <Route path="/admin/rx" element={<AdminGate><AdminRx /></AdminGate>} />
+                        <Route path="/admin/loyalty" element={<AdminGate><AdminLoyalty /></AdminGate>} />
                         <Route path="/admin/notify" element={<AdminGate><AdminNotify /></AdminGate>} />
                         <Route path="/notifications" element={<NotificationsPage />} />
                     </Routes>}
                 </main>
-                {userPhone !== null && <BottomNav />}
+                <BottomNav />
                 {userPhone === ADMIN_PHONE && <div className="kh-admin-entry">
                     <Link to="/admin">دخول الأدمن — لوحة التحكم</Link>
                 </div>}
@@ -1444,5 +1564,6 @@ export function App() {
         </AdminContext.Provider>
         </AdminKeyContext.Provider>
         </NotifContext.Provider>
+        </LoyaltyContext.Provider>
     </CartContext.Provider>;
 }

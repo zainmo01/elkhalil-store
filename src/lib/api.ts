@@ -96,6 +96,13 @@ export async function loadPriceOverrides(): Promise<{ id: string; price: number 
 // Admin calls go through the admin_api SQL function; the key is checked server-side.
 export async function adminCall<T = unknown>(key: string, action: string, payload: Record<string, unknown> = {}): Promise<T> {
     if (!supabase) throw new Error('backend not configured');
+    if (action === 'loyalty-get' || action === 'loyalty-set') {
+        const r = action === 'loyalty-get'
+            ? await supabase.rpc('admin_loyalty', { p_key: key })
+            : await supabase.rpc('admin_loyalty_set', { p_key: key, p_earn_per: Number(payload.earn_per), p_point_value: Number(payload.point_value) });
+        if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
+        return r.data as T;
+    }
     if (action === 'publish-notification' || action === 'delete-notification') {
         const r = action === 'publish-notification'
             ? await supabase.rpc('admin_notify', { p_key: key, p_title: String(payload.title ?? ''), p_body: String(payload.body ?? '') })
@@ -113,4 +120,36 @@ export function fmtTime(iso: string): string {
     const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).replace('AM', 'ص').replace('PM', 'م');
     const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     return `${day} — ${time}`;
+}
+
+export type LoyaltyInfo = { balance: number; earn_per: number; point_value: number; history: { delta: number; reason: string; order_id: number | null; created_at: string }[] };
+
+export async function loadCart(phone: string): Promise<Record<string, number>> {
+    if (!supabase) return {};
+    const { data, error } = await supabase.rpc('cart_get', { p_phone: phone });
+    if (error) throw new Error(error.message);
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries((data ?? {}) as Record<string, unknown>)) { const n = Number(v); if (n > 0) out[k] = n; }
+    return out;
+}
+
+export async function saveCart(phone: string, cart: Record<string, number>): Promise<void> {
+    if (!supabase) return;
+    await supabase.rpc('cart_set', { p_phone: phone, p_items: cart });
+}
+
+export async function loyaltyInfo(phone: string): Promise<LoyaltyInfo | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc('loyalty_info', { p_phone: phone });
+    if (error || !data) return null;
+    return data as LoyaltyInfo;
+}
+
+export async function placeOrder2(input: {
+    customer_name: string; phone: string; address: string; payment: string; items: OrderItem[]; total: number; account: string; redeem: number;
+}): Promise<{ id: number; redeemed: number; discount: number; total: number } | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc('place_order2', { p_name: input.customer_name, p_phone: input.phone, p_address: input.address, p_payment: input.payment, p_items: input.items, p_total: input.total, p_account: input.account, p_redeem: input.redeem });
+    if (error) throw new Error(error.message);
+    return data as { id: number; redeemed: number; discount: number; total: number };
 }
