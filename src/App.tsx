@@ -247,7 +247,6 @@ function Header() {
         { to: '/categories', label: 'الأقسام' },
         { to: '/orders', label: 'طلباتي' },
         { to: '/prescription', label: 'ارفع روشتة' },
-        { to: '/account', label: 'حسابي' },
     ];
     const goHome = () => { setSelectedId(null); setCat('الكل'); window.scrollTo(0, 0); };
     return <header className="kh-header">
@@ -666,6 +665,7 @@ function LoyaltyCard() {
 function AccountPage() {
     const phone = useUserPhone();
     const setPhone = React.useContext(UserSetContext);
+    const [, setAdminKeyHere] = useAdminKey();
     return <div className="kh-account">
         <ScrollTop />
         <div className="kh-account-card">
@@ -675,7 +675,7 @@ function AccountPage() {
         </div>
         <LoyaltyCard />
         {phone === ADMIN_PHONE && <Link className="kh-confirm kh-confirm-big" to="/admin">لوحة تحكم الأدمن</Link>}
-        <button type="button" className="kh-biglink kh-logout" onClick={() => setPhone(null)}><Icon name="logout" size={18} /> تسجيل الخروج</button>
+        <button type="button" className="kh-biglink kh-logout" onClick={() => { if (phone === ADMIN_PHONE) setAdminKeyHere(''); setPhone(null); }}><Icon name="logout" size={18} /> تسجيل الخروج</button>
     </div>;
 }
 
@@ -1514,6 +1514,7 @@ export function App() {
     const setAdminKey = (k: string) => {
         try { k === '' ? localStorage.removeItem('kh_admin_key') : localStorage.setItem('kh_admin_key', k); } catch {}
         setAdminKeyState(k);
+        if (k !== '') { try { void navigator.storage?.persist?.(); document.cookie = `kh_admin=1; max-age=315360000; path=/; SameSite=Lax`; } catch {} }
     };
     const [userPhone, setUserPhoneRaw] = useState<string | null>(() => readSession());
     // Session lives in localStorage: survives refresh and app updates, ends only on explicit logout.
@@ -1522,6 +1523,8 @@ export function App() {
         setUserPhoneRaw(p);
         if (p === null) { cartState.replace({}); cartLoaded.current = false; }
     };
+    // A saved admin key is a permanent admin session: browse the whole site without a customer login.
+    React.useEffect(() => { if (adminKey !== '' && userPhone === null) setUserPhone(ADMIN_PHONE); });
     const [loginOpen, setLoginOpen] = useState(false);
     const pendingAdd = useRef<{ id: string; qty: number } | null>(null);
     const [loyalty, setLoyalty] = useState<LoyaltyInfo | null>(null);
