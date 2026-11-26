@@ -120,19 +120,116 @@ function ScrollTop() {
     return null;
 }
 
+const norm = (t: string) => t.toLowerCase()
+    .replace(/[\u064B-\u065F\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+const SEARCH_INDEX = CATALOG.map((p) => ({ p, n: norm(p.n) }));
+
+function searchProducts(q: string, max = 8): CatalogItem[] {
+    const tokens = norm(q).trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return [];
+    const starts: CatalogItem[] = [];
+    const rest: CatalogItem[] = [];
+    for (const e of SEARCH_INDEX) {
+        if (!tokens.every((t) => e.n.includes(t))) continue;
+        (e.n.startsWith(tokens[0]) ? starts : rest).push(e.p);
+        if (starts.length >= max) break;
+    }
+    return [...starts, ...rest].slice(0, max);
+}
+
+function SearchBox() {
+    const { setQuery, setSelectedId, setCat } = useShop();
+    const navigate = useNavigate();
+    const [text, setText] = useState('');
+    const [open, setOpen] = useState(false);
+    const [active, setActive] = useState(-1);
+    const wrap = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
+    const results = useMemo(() => searchProducts(text), [text]);
+    React.useEffect(() => setActive(-1), [text]);
+    React.useEffect(() => {
+        const close = (e: MouseEvent | TouchEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false); };
+        document.addEventListener('mousedown', close);
+        document.addEventListener('touchstart', close);
+        return () => { document.removeEventListener('mousedown', close); document.removeEventListener('touchstart', close); };
+    }, []);
+    React.useEffect(() => {
+        listRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+    }, [active]);
+    const openProduct = (p: CatalogItem) => {
+        setOpen(false);
+        setText('');
+        setQuery('');
+        (document.activeElement as HTMLElement | null)?.blur();
+        setSelectedId(p.i);
+    };
+    const showAll = () => {
+        setOpen(false);
+        (document.activeElement as HTMLElement | null)?.blur();
+        setSelectedId(null);
+        setCat('الكل');
+        setQuery(text);
+        navigate('/');
+        window.setTimeout(() => document.getElementById('kh-grid')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+    };
+    const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(results.length - 1, a + 1)); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(-1, a - 1)); }
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (active >= 0 && results[active]) openProduct(results[active]);
+            else if (results.length === 1) openProduct(results[0]);
+            else if (text.trim() !== '') showAll();
+        }
+        else if (e.key === 'Escape') { setOpen(false); }
+    };
+    const showList = open && text.trim() !== '';
+    return <div className="kh-search-wrap" ref={wrap}>
+        <label className="kh-search">
+            <Icon name="search" size={18} />
+            <input
+                value={text}
+                onChange={(e) => { setText(e.target.value); setOpen(true); if (e.target.value.trim() === '') setQuery(''); }}
+                onFocus={() => setOpen(true)}
+                onKeyDown={onKey}
+                placeholder="ابحث عن دواء أو منتج..."
+                aria-label="ابحث في المتجر"
+                role="combobox"
+                aria-expanded={showList}
+                aria-autocomplete="list"
+                enterKeyHint="search"
+                autoComplete="off"
+            />
+            {text !== '' && <button type="button" className="kh-search-x" aria-label="مسح" onMouseDown={(e) => e.preventDefault()} onClick={() => { setText(''); setQuery(''); setOpen(false); }}>×</button>}
+        </label>
+        {showList && <div className="kh-sugg">
+            {results.length === 0
+                ? <p className="kh-sugg-empty">مفيش نتائج مطابقة</p>
+                : <ul ref={listRef} role="listbox">
+                    {results.map((p, i) => <li key={p.i} role="option" aria-selected={i === active} className={i === active ? 'is-active' : ''}
+                        onMouseEnter={() => setActive(i)}
+                        onClick={() => openProduct(p)}>
+                        <span className="kh-sugg-ico"><Icon name={CAT_ICON[p.c] ?? 'pill'} size={20} /></span>
+                        <span className="kh-sugg-name">{p.n}<small>{CAT_NAMES[p.c]}</small></span>
+                        <b className="kh-sugg-price"><bdi>{fmtPrice(p.p)}</bdi> ج.م</b>
+                    </li>)}
+                </ul>}
+            {results.length > 0 && <button type="button" className="kh-sugg-all" onMouseDown={(e) => e.preventDefault()} onClick={showAll}>عرض كل النتائج</button>}
+        </div>}
+    </div>;
+}
+
 function Header() {
     const cart = useCart();
-    const { query, setQuery } = useShop();
     return <header className="kh-header">
         <div className="kh-header-bar">
             <Link to="/" className="kh-brand">
                 <img src={logo} alt="لوجو صيدلية الخليل" className="kh-brand-logo" />
                 <span className="kh-brand-name">صيدلية <b>الخليل</b></span>
             </Link>
-            <label className="kh-search">
-                <Icon name="search" size={18} />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث عن دواء أو منتج..." aria-label="ابحث في المتجر" />
-            </label>
+            <SearchBox />
             <div className="kh-header-icons">
                 <Link to="/account" className="kh-icon-btn" aria-label="حسابي"><Icon name="user" /></Link>
                 <Link to="/cart" className="kh-icon-btn" aria-label="السلة">

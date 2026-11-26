@@ -1270,12 +1270,7 @@ p { margin: 8px 0; line-height: 1.75; }
 
     .kh-header { border-radius: 0; padding: 12px 24px; }
 
-    .kh-search {
-        order: 0;
-        flex: 1 1 auto;
-        max-width: 520px;
-        margin: 0 auto;
-    }
+    .kh-search-wrap { order: 0; flex: 1 1 auto; max-width: 520px; margin: 0 auto; }
 
     .kh-header-bar { flex-wrap: nowrap; }
 
@@ -1369,3 +1364,17 @@ p { margin: 8px 0; line-height: 1.75; }
 .kh-hero-count { display: inline-flex; gap: 3px; }
 .kh-detail .kh-detail-name { color: var(--kh-ink); font-size: 21px; font-weight: 800; margin: 14px 0 6px; line-height: 1.45; }
 .kh-detail .kh-detail-price { color: var(--kh-ink); font-size: 24px; margin: 4px 0 12px; }
+
+.kh-search-wrap { order: 3; flex: 1 1 100%; position: relative; min-width: 0; }
+.kh-search-wrap .kh-search { order: 0; flex: none; max-width: none; margin: 0; }
+.kh-search-x { border: 0; background: #e2e8f0; color: #475569; width: 20px; height: 20px; border-radius: 50%; font-size: 15px; line-height: 1; padding: 0; cursor: pointer; flex: none; }
+.kh-sugg { position: absolute; top: calc(100% + 6px); inset-inline: 0; background: #fff; border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28); overflow: hidden; z-index: 50; color: var(--kh-ink); }
+.kh-sugg ul { list-style: none; margin: 0; padding: 4px; max-height: min(60vh, 420px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.kh-sugg li { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; cursor: pointer; }
+.kh-sugg li.is-active { background: #eef2f7; }
+.kh-sugg-ico { width: 34px; height: 34px; border-radius: 8px; background: #f1f5f9; color: #334155; display: flex; align-items: center; justify-content: center; flex: none; }
+.kh-sugg-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; line-height: 1.4; display: flex; flex-direction: column; }
+.kh-sugg-name small { font-size: 11px; font-weight: 400; color: var(--kh-muted); }
+.kh-sugg-price { font-size: 13px; white-space: nowrap; }
+.kh-sugg-all { display: block; width: 100%; border: 0; border-top: 1px solid var(--kh-hairline); background: #f8fafc; padding: 11px; font: inherit; font-weight: 700; font-size: 13px; color: #1e293b; cursor: pointer; }
+.kh-sugg-empty { margin: 0; padding: 16px; text-align: center; color: var(--kh-muted); font-size: 13px; }
