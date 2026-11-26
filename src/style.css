@@ -1547,3 +1547,7 @@ button, input, textarea, select { font-family: inherit; }
 @media (min-width: 1000px) { .kh-announce { font-size: 19px; padding: 14px 24px; } }
 @media (prefers-reduced-motion: reduce) { .kh-announce, .kh-announce-ico { animation: none; } }
 .kh-add-form textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--kh-hairline); border-radius: 8px; padding: 10px; font: inherit; font-size: 15px; resize: vertical; }
+
+.kh-announce-ico { flex: none; }
+.kh-add-form .kh-drv-row { flex-wrap: nowrap; }
+.kh-add-form .kh-drv-row > button { flex: 1; white-space: nowrap; width: auto; margin: 0; padding: 12px 10px; }

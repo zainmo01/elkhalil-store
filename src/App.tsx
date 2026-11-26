@@ -168,7 +168,7 @@ function AnnounceBanner() {
     }, []);
     if (text === '') return null;
     return <div className="kh-announce" role="status" aria-live="polite">
-        <span className="kh-announce-ico" aria-hidden="true">📢</span>
+        <svg className="kh-announce-ico" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11v3a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z" /><path d="M15 9a4 4 0 0 1 0 6" /><path d="M18 6.5a8 8 0 0 1 0 11" /></svg>
         <span className="kh-announce-text">{text}</span>
     </div>;
 }
