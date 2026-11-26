@@ -76,6 +76,14 @@ export async function submitRx(input: {
     if (error) throw new Error(error.message);
 }
 
+// Prices the pharmacy edited from the admin panel (the bundled catalog has the originals).
+export async function loadPriceOverrides(): Promise<{ id: string; price: number }[]> {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('products').select('id,sell_price').eq('edited', true).limit(5000);
+    if (error || !data) return [];
+    return data.map((r) => ({ id: String(r.id), price: Number(r.sell_price) }));
+}
+
 // Admin calls go through the admin_api SQL function; the key is checked server-side.
 export async function adminCall<T = unknown>(key: string, action: string, payload: Record<string, unknown> = {}): Promise<T> {
     if (!supabase) throw new Error('backend not configured');

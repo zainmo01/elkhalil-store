@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime } from './lib/api';
+import { SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides } from './lib/api';
 import type { OrderRow, RxRow } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
@@ -1129,21 +1129,22 @@ function AdminProductRow({ p }: { p: CatalogItem }) {
     const [priceDraft, setPriceDraft] = useState(String(price));
     const [stockDraft, setStockDraft] = useState(String(stock));
     const [saved, setSaved] = useState(false);
-    const dirty = digitsOnly(priceDraft) !== String(price) || digitsOnly(stockDraft) !== String(stock);
+    const dirty = priceDraft !== String(price) || digitsOnly(stockDraft) !== String(stock);
     return <div className="kh-card kh-prod-row">
         <span className="kh-thumb"><CatTile c={p.c} size={26} /></span>
         <div className="kh-prod-info">
             <strong>{p.n}</strong>
             <span className="kh-card-unit">{CAT_NAMES[p.c]}</span>
             <div className="kh-prod-inputs">
-                <label>السعر<input value={priceDraft} onChange={(e) => { setPriceDraft(digitsOnly(e.target.value)); setSaved(false); }} inputMode="numeric" dir="ltr" /></label>
+                <label>السعر<input value={priceDraft} onChange={(e) => { setPriceDraft(e.target.value.replace(/[^0-9.]/g, '')); setSaved(false); }} inputMode="decimal" dir="ltr" /></label>
                 <label>المخزون<input value={stockDraft} onChange={(e) => { setStockDraft(digitsOnly(e.target.value)); setSaved(false); }} inputMode="numeric" dir="ltr" /></label>
             </div>
         </div>
         <button type="button" className="kh-confirm kh-save" disabled={!dirty && !saved} onClick={() => {
-            const nextPrice = Number(digitsOnly(priceDraft)) || price;
+            const nextPrice = Number(priceDraft) || price;
             const nextStock = Number(digitsOnly(stockDraft)) || 0;
             admin.saveProduct(p.i, nextPrice, nextStock);
+            applyOverrides([{ id: p.i, price: nextPrice }]);
             setSaved(true);
             if (SUPABASE_READY) adminCall(adminKey, 'save-product', { id: p.i, price: nextPrice, stock: nextStock }).catch(() => {});
         }}>{saved ? '✓' : 'حفظ'}</button>
@@ -1246,8 +1247,24 @@ function AdminRx() {
     </>;
 }
 
+function applyOverrides(list: { id: string; price: number }[]): boolean {
+    let changed = false;
+    for (const o of list) {
+        const it = BY_ID.get(o.id);
+        if (it && it.p !== o.price) { it.p = o.price; changed = true; }
+    }
+    return changed;
+}
+
 export function App() {
     const { pathname } = useLocation();
+    const [, setPriceTick] = useState(0);
+    React.useEffect(() => {
+        const run = () => { loadPriceOverrides().then((l) => { if (applyOverrides(l)) setPriceTick((t) => t + 1); }).catch(() => {}); };
+        run();
+        const t = window.setInterval(run, 300000);
+        return () => window.clearInterval(t);
+    }, []);
     const cartState = useCartState();
     const adminState = useAdminState();
     const [adminKey, setAdminKeyState] = useState<string>(() => {
