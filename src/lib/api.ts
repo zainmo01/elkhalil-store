@@ -39,9 +39,9 @@ export async function placeOrder(input: {
     total: number;
 }): Promise<number | null> {
     if (!supabase) return null;
-    const { data, error } = await supabase.from('orders').insert(input).select('id').single();
+    const { data, error } = await supabase.rpc('place_order', { p_name: input.customer_name, p_phone: input.phone, p_address: input.address, p_payment: input.payment, p_items: input.items, p_total: input.total });
     if (error) throw new Error(error.message);
-    return data.id as number;
+    return Number(data);
 }
 
 // Submit a prescription: photo to private storage, row to prescriptions.
