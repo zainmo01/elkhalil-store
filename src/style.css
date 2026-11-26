@@ -1535,3 +1535,6 @@ button, input, textarea, select { font-family: inherit; }
     .kh-userbar.kh-ub-mobile { display: none; }
     .kh-userbar.kh-ub-desktop { display: flex; color: #fff; font-size: 13.5px; margin-inline-start: auto; margin-inline-end: 24px; }
 }
+
+.kh-confirm.kh-call:hover:not(:disabled) { background: var(--kh-mint); color: var(--kh-green-dark); }
+.kh-search input[type=search] { -webkit-appearance: none; appearance: none; } .kh-search input::-webkit-search-cancel-button, .kh-search input::-webkit-search-decoration { -webkit-appearance: none; display: none; }

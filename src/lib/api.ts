@@ -65,15 +65,36 @@ export async function submitRx(input: {
     notes: string;
 }): Promise<void> {
     if (!supabase) return; // local fallback: UI just shows the success screen
-    const photo = await toDataUrl(input.file);
-    const { error } = await supabase.rpc('submit_rx', {
-        p_phone: input.phone,
-        p_photo: photo,
-        p_alt: input.want_substitutes,
-        p_call: input.want_call,
-        p_notes: input.notes,
-    });
-    if (error) throw new Error(error.message);
+    const photo = await Promise.race([
+        toDataUrl(input.file),
+        new Promise<string>((_, rej) => setTimeout(() => rej(new Error('compress timeout')), 20000)),
+    ]);
+    // One request id per submission: if the answer is lost and we retry, the server returns the same row instead of a duplicate.
+    const req = `rx-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    let lastErr: Error = new Error('failed');
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 25000);
+        try {
+            const { error } = await supabase.rpc('submit_rx2', {
+                p_phone: input.phone,
+                p_photo: photo,
+                p_alt: input.want_substitutes,
+                p_call: input.want_call,
+                p_notes: input.notes,
+                p_req: req,
+            }).abortSignal(ctl.signal);
+            clearTimeout(timer);
+            if (!error) return;
+            if (/bad photo/i.test(error.message)) throw new Error(error.message);
+            lastErr = new Error(error.message);
+        } catch (e) {
+            clearTimeout(timer);
+            lastErr = e instanceof Error ? e : new Error('failed');
+            if (/bad photo/i.test(lastErr.message)) throw lastErr;
+        }
+    }
+    throw lastErr;
 }
 
 export type NotifRow = { id: number; title: string; body: string; created_at: string };

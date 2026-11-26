@@ -212,6 +212,8 @@ function SearchBox() {
                 onKeyDown={onKey}
                 placeholder="ابحث عن دواء أو منتج..."
                 aria-label="ابحث في المتجر"
+                type="search"
+                name="q"
                 role="combobox"
                 aria-expanded={showList}
                 aria-autocomplete="list"
