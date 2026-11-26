@@ -50,7 +50,7 @@ body {
 .kh-header, .kh-main { min-width: 0; }
 
 .kh-main {
-    padding: 12px 0 20px;
+    padding: 12px 12px 20px;
     flex: 1;
 }
 
@@ -268,8 +268,8 @@ p { margin: 8px 0; line-height: 1.75; }
 
 .kh-cats-row {
     display: flex;
-    gap: 10px;
-    overflow-x: auto;
+    gap: 8px;
+    overflow: visible;
     padding-bottom: 4px;
     scrollbar-width: none;
 }
@@ -286,7 +286,8 @@ p { margin: 8px 0; line-height: 1.75; }
     font-family: inherit;
     cursor: pointer;
     padding: 4px 2px;
-    min-width: 62px;
+    min-width: 0;
+    flex: 1 1 0;
 }
 
 .kh-cat-icon {
@@ -373,7 +374,7 @@ p { margin: 8px 0; line-height: 1.75; }
 .kh-chips {
     display: flex;
     gap: 8px;
-    overflow-x: auto;
+    flex-wrap: wrap;
     padding: 4px 0 6px;
     scrollbar-width: none;
 }
