@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
+import { myOrders, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
 import type { OrderRow, RxRow, NotifRow, LoyaltyInfo } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
@@ -579,10 +579,28 @@ function loadOrders(): SavedOrder[] {
     try { return JSON.parse(localStorage.getItem('kh_orders') ?? '[]') as SavedOrder[]; } catch { return []; }
 }
 
+const CUSTOMER_STEPS: { s: OrderStatus; label: string }[] = [
+    { s: 'new', label: 'تم الاستلام' },
+    { s: 'prep', label: 'قيد التحضير' },
+    { s: 'out', label: 'مع الديليفري' },
+    { s: 'done', label: 'اتسلم' },
+];
+type ShownOrder = { id: string; at: string; total: number; payment: string; status?: OrderStatus; driver?: string | null; items: { id?: string; name: string; qty: number }[] };
 function OrdersPage() {
     const phone = useUserPhone();
     const navigate = useNavigate();
-    const orders = loadOrders().filter((o) => o.phone === phone);
+    const [remote, setRemote] = useState<ShownOrder[] | null>(null);
+    React.useEffect(() => {
+        if (!phone) return;
+        let alive = true;
+        const load = () => { myOrders(phone).then((r) => { if (alive && r) setRemote(r.map((o) => ({ id: `EK-${o.id}`, at: o.created_at, total: Number(o.total), payment: o.payment, status: o.status as OrderStatus, driver: o.driver_phone, items: o.items }))); }).catch(() => {}); };
+        load();
+        const t = window.setInterval(load, 20000);
+        return () => { alive = false; window.clearInterval(t); };
+    }, [phone]);
+    const local: ShownOrder[] = loadOrders().filter((o) => o.phone === phone);
+    const ids = new Set((remote ?? []).map((o) => o.id));
+    const orders: ShownOrder[] = [...(remote ?? []), ...local.filter((o) => !ids.has(o.id))];
     return <div className="kh-catpage">
         <ScrollTop />
         <p className="kh-section">طلباتي</p>
@@ -593,18 +611,28 @@ function OrdersPage() {
                 <button type="button" className="kh-confirm" onClick={() => navigate('/')}>ابدأ التسوق</button>
             </div>
             : <div className="kh-orders">
-                {orders.map((o) => <div key={o.id} className="kh-order">
-                    <div className="kh-order-top"><strong>{o.id}</strong><span>{fmtTime(o.at)}</span></div>
-                    <div className="kh-order-items">{o.items.map((i, k) => {
-                        const p = (i as { id?: string }).id ? BY_ID.get((i as { id?: string }).id as string) : [...BY_ID.values()].find((q) => q.n === i.name);
-                        return <div className="kh-oi" key={k}>
-                            <span className="kh-oi-img">{p ? <img src={photoFor(p.c, p.i)} alt="" loading="lazy" /> : <Icon name="pill" size={28} />}</span>
-                            <span className="kh-oi-name">{i.name}</span>
-                            <span className="kh-oi-qty">×{i.qty.toLocaleString('en-US')}</span>
-                        </div>;
-                    })}</div>
-                    <div className="kh-order-bot"><span>{o.payment}</span><b>{egp(o.total)}</b></div>
-                </div>)}
+                {orders.map((o) => {
+                    const idx = o.status ? CUSTOMER_STEPS.findIndex((x) => x.s === o.status) : -1;
+                    return <div key={o.id} className="kh-order">
+                        <div className="kh-order-top"><strong>{o.id}</strong><span>{fmtTime(o.at)}</span></div>
+                        {idx >= 0 && <div className="kh-track">
+                            {CUSTOMER_STEPS.map((st, k) => <div key={st.s} className={`kh-track-step${k < idx ? ' is-past' : ''}${k === idx ? ' is-now' : ''}`}><i>{k <= idx ? '✓' : ''}</i><span>{st.label}</span></div>)}
+                        </div>}
+                        {o.status === 'out' && o.driver && <a className="kh-driver" href={`tel:${o.driver}`}>
+                            <span>رقم الديليفري</span><bdi dir="ltr">{o.driver}</bdi><b>اتصل</b>
+                        </a>}
+                        {o.status === 'out' && !o.driver && <p className="kh-driver-wait">طلبك مع الديليفري في الطريق ليك.</p>}
+                        <div className="kh-order-items">{o.items.map((i, k) => {
+                            const p = i.id ? BY_ID.get(i.id) : [...BY_ID.values()].find((q) => q.n === i.name);
+                            return <div className="kh-oi" key={k}>
+                                <span className="kh-oi-img">{p ? <img src={photoFor(p.c, p.i)} alt="" loading="lazy" /> : <Icon name="pill" size={28} />}</span>
+                                <span className="kh-oi-name">{i.name}</span>
+                                <span className="kh-oi-qty">×{i.qty.toLocaleString('en-US')}</span>
+                            </div>;
+                        })}</div>
+                        <div className="kh-order-bot"><span>{o.payment === 'wallet' ? 'محفظة إلكترونية' : 'الدفع عند الاستلام'}</span><b>{egp(o.total)}</b></div>
+                    </div>;
+                })}
             </div>}
     </div>;
 }
@@ -1226,8 +1254,11 @@ function AdminOrderDetail() {
     const [key] = useAdminKey();
     const [order, setOrder] = useState<OrderRow | null>(null);
     const [err, setErr] = useState('');
+    const [driver, setDriver] = useState('');
+    const [driverSaved, setDriverSaved] = useState(false);
     React.useEffect(() => {
         if (!SUPABASE_READY) return;
+        adminCall<string | null>(key, 'driver-get', { id }).then((d) => setDriver(d ?? '')).catch(() => {});
         adminCall<{ orders: OrderRow[] }>(key, 'list-orders')
             .then((d) => setOrder(d.orders.find((o) => String(o.id) === id) ?? null))
             .catch((e) => setErr(e.message === 'unauthorized' ? 'unauthorized' : 'تعذر تحميل الأوردر'));
@@ -1275,6 +1306,18 @@ function AdminOrderDetail() {
             <span className="kh-order-time">{fmtTime(order.created_at)} — {order.payment === 'wallet' ? 'محفظة إلكترونية' : 'الدفع عند الاستلام'}</span>
         </div>
         <a className="kh-confirm kh-call" href={`tel:${order.phone}`}>اتصل بالعميل</a>
+        <div className="kh-card kh-drv-box">
+            <strong>حالة الأوردر (بتظهر للعميل)</strong>
+            <div className="kh-drv-steps">
+                {STATUS_FLOW.map((st) => <button type="button" key={st} className={`kh-chip${status === st ? ' is-active' : ''}`} onClick={() => { setOrder({ ...order, status: st }); adminCall(key, 'set-order-status', { id: order.id, status: st }).catch(() => {}); }}>{ORDER_STATUS[st].label}</button>)}
+            </div>
+            <strong>رقم الديليفري (بيظهر للعميل لما الأوردر يخرج)</strong>
+            <div className="kh-drv-row">
+                <input type="tel" inputMode="tel" dir="ltr" placeholder="01xxxxxxxxx" value={driver} onChange={(e) => { setDriver(e.target.value); setDriverSaved(false); }} />
+                <button type="button" className="kh-confirm" onClick={() => { adminCall(key, 'driver-set', { id: order.id, driver }).then(() => setDriverSaved(true)).catch(() => {}); }}>حفظ</button>
+            </div>
+            {driverSaved && <span className="kh-order-time">اتحفظ ✓</span>}
+        </div>
         <button type="button" className="kh-confirm kh-confirm-big" disabled={isLast} onClick={advance}>
             {isLast ? 'الأوردر اتسلم ✓' : `نقل لـ "${ORDER_STATUS[STATUS_FLOW[STATUS_FLOW.indexOf(status) + 1]].label}"`}
         </button>

@@ -103,6 +103,13 @@ export async function adminCall<T = unknown>(key: string, action: string, payloa
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
         return r.data as T;
     }
+    if (action === 'driver-get' || action === 'driver-set') {
+        const r = action === 'driver-get'
+            ? await supabase.rpc('admin_order_driver_get', { p_key: key, p_id: Number(payload.id) })
+            : await supabase.rpc('admin_order_driver_set', { p_key: key, p_id: Number(payload.id), p_driver: String(payload.driver ?? '') });
+        if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
+        return r.data as T;
+    }
     if (action === 'publish-notification' || action === 'delete-notification') {
         const r = action === 'publish-notification'
             ? await supabase.rpc('admin_notify', { p_key: key, p_title: String(payload.title ?? ''), p_body: String(payload.body ?? '') })
@@ -152,4 +159,12 @@ export async function placeOrder2(input: {
     const { data, error } = await supabase.rpc('place_order2', { p_name: input.customer_name, p_phone: input.phone, p_address: input.address, p_payment: input.payment, p_items: input.items, p_total: input.total, p_account: input.account, p_redeem: input.redeem });
     if (error) throw new Error(error.message);
     return data as { id: number; redeemed: number; discount: number; total: number };
+}
+
+export type MyOrder = { id: number; status: string; driver_phone: string | null; total: number; payment: string; created_at: string; items: { id?: string; name: string; qty: number }[] };
+export async function myOrders(phone: string): Promise<MyOrder[] | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc('my_orders', { p_phone: phone });
+    if (error || !Array.isArray(data)) return null;
+    return data as MyOrder[];
 }

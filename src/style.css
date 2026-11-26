@@ -1506,3 +1506,21 @@ button, input, textarea, select { font-family: inherit; }
 .kh-oi-qty { position: absolute; top: 4px; inset-inline-start: 4px; background: #05483c; color: #fff; font-size: 11px; padding: 1px 7px; border-radius: 10px; }
 .kh-cart-row .kh-aph { width: 64px; height: 44px; border-radius: 6px; overflow: hidden; flex: none; background: #eef6f3; }
 .kh-cart-row .kh-aph img { width: 100%; height: 100%; object-fit: cover; }
+
+.kh-track { display: flex; margin: 12px 0 8px; }
+.kh-track-step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; font-size: 11px; color: var(--kh-muted); text-align: center; }
+.kh-track-step i { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #cfd8d4; background: #fff; font-style: normal; font-size: 11px; line-height: 16px; color: #fff; z-index: 1; }
+.kh-track-step::before { content: ''; position: absolute; top: 9px; inset-inline-start: 50%; width: 100%; height: 2px; background: #cfd8d4; }
+.kh-track-step:last-child::before { display: none; }
+.kh-track-step.is-past i, .kh-track-step.is-now i { background: #0a6b52; border-color: #0a6b52; }
+.kh-track-step.is-past::before { background: #0a6b52; }
+.kh-track-step.is-now { color: #05483c; font-weight: 700; }
+.kh-driver { display: flex; align-items: center; gap: 10px; background: #eef6f3; border: 1px solid #0a6b52; border-radius: 10px; padding: 10px 12px; margin: 8px 0; color: #05483c; text-decoration: none; font-size: 14px; }
+.kh-driver bdi { flex: 1; font-weight: 700; font-size: 16px; text-align: start; }
+.kh-driver b { background: #0a6b52; color: #fff; padding: 5px 14px; border-radius: 8px; font-size: 13px; }
+.kh-driver-wait { color: #05483c; font-size: 13px; margin: 6px 0; }
+.kh-drv-box { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin: 10px 0; }
+.kh-drv-steps { display: flex; flex-wrap: wrap; gap: 8px; }
+.kh-drv-row { display: flex; gap: 8px; }
+.kh-drv-row input { flex: 1; min-width: 0; border: 1px solid var(--kh-hairline); border-radius: 8px; padding: 10px; font-size: 15px; }
+.kh-drv-row .kh-confirm { width: auto; padding: 0 20px; margin: 0; }
