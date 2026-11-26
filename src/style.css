@@ -32,7 +32,7 @@ body {
     margin: 0;
     background: var(--kh-bg);
     color: var(--kh-ink);
-    font-family: system-ui, 'Segoe UI', Tahoma, 'Noto Kufi Arabic', sans-serif;
+    font-family: 'Tajawal', system-ui, 'Segoe UI', Tahoma, sans-serif;
 }
 
 .kh-app {
@@ -1366,3 +1366,5 @@ p { margin: 8px 0; line-height: 1.75; }
 .kh-svc-foot { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #eff7f3; color: #062a26; font-size: 13px; border-top: 3px solid #2b7f68; }
 .kh-svc-foot strong { font-weight: 800; }
 .kh-svc-foot span { color: var(--kh-muted); font-size: 12px; margin-inline-start: auto; }
+
+button, input, textarea, select { font-family: inherit; }
