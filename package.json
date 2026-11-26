@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp dist/index.html dist/404.html",
+    "build": "vite build && sed -i 's#./assets/manifest-[A-Za-z0-9_-]*\\.webmanifest#./manifest.webmanifest#' dist/index.html && rm -f dist/assets/manifest-*.webmanifest && cp dist/index.html dist/404.html",
     "preview": "vite preview"
   },
   "dependencies": {
