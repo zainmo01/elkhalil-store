@@ -69,21 +69,11 @@ export async function submitRx(input: {
     if (error) throw new Error(error.message);
 }
 
-// Call the admin edge function with the pharmacy's admin key.
+// Admin calls go through the admin_api SQL function; the key is checked server-side.
 export async function adminCall<T = unknown>(key: string, action: string, payload: Record<string, unknown> = {}): Promise<T> {
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-api`;
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'x-admin-key': key,
-        },
-        body: JSON.stringify({ action, ...payload }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 401) throw new Error('unauthorized');
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!supabase) throw new Error('backend not configured');
+    const { data, error } = await supabase.rpc('admin_api', { p_key: key, p_action: action, p_payload: payload });
+    if (error) throw new Error(/unauthorized/i.test(error.message) ? 'unauthorized' : error.message);
     return data as T;
 }
 
