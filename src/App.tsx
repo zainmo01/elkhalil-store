@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides } from './lib/api';
-import type { OrderRow, RxRow } from './lib/api';
+import { SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications } from './lib/api';
+import type { OrderRow, RxRow, NotifRow } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
     return <p className="kh-p">{children}</p>;
@@ -14,6 +14,18 @@ function Closing({ children }: { children: React.ReactNode }) {
 }
 import logo from './photos/logo.webp';
 import hero from './photos/hero.webp';
+import c0_1 from './photos/cat/c0_1.webp';
+import c0_2 from './photos/cat/c0_2.webp';
+import c1_1 from './photos/cat/c1_1.webp';
+import c1_2 from './photos/cat/c1_2.webp';
+import c1_3 from './photos/cat/c1_3.webp';
+import c2_1 from './photos/cat/c2_1.webp';
+import c2_2 from './photos/cat/c2_2.webp';
+import c2_3 from './photos/cat/c2_3.webp';
+import c3_1 from './photos/cat/c3_1.webp';
+import c3_2 from './photos/cat/c3_2.webp';
+import c4_1 from './photos/cat/c4_1.webp';
+import c4_2 from './photos/cat/c4_2.webp';
 
 // ===== REAL CATALOG (loaded from the pharmacy's item file) =====
 // catalog.ts holds customer-safe fields only: id, name, sell price, category.
@@ -67,6 +79,8 @@ function useCartState() {
 }
 
 const CartContext = React.createContext<ReturnType<typeof useCartState> | null>(null);
+type NotifState = { items: NotifRow[]; unread: number; markSeen: () => void; reload: () => void };
+const NotifContext = React.createContext<NotifState>({ items: [], unread: 0, markSeen: () => {}, reload: () => {} });
 const UserContext = React.createContext<string>('');
 const UserSetContext = React.createContext<(p: string | null) => void>(() => {});
 const ShopContext = React.createContext<{ cat: string; setCat: (c: string) => void; query: string; setQuery: (q: string) => void; selectedId: string | null; setSelectedId: (id: string | null) => void }>({ cat: 'الكل', setCat: () => {}, query: '', setQuery: () => {}, selectedId: null, setSelectedId: () => {} });
@@ -224,6 +238,7 @@ function Header() {
     const cart = useCart();
     const { pathname } = useLocation();
     const { setSelectedId, setCat } = useShop();
+    const notif = React.useContext(NotifContext);
     const links = [
         { to: '/', label: 'الرئيسية' },
         { to: '/categories', label: 'الأقسام' },
@@ -231,26 +246,85 @@ function Header() {
         { to: '/prescription', label: 'ارفع روشتة' },
         { to: '/account', label: 'حسابي' },
     ];
+    const goHome = () => { setSelectedId(null); setCat('الكل'); window.scrollTo(0, 0); };
     return <header className="kh-header">
         <div className="kh-header-bar">
-            <Link to="/" className="kh-brand">
+            <Link to="/" className="kh-brand" onClick={goHome} aria-label="الصفحة الرئيسية">
                 <img src={logo} alt="لوجو صيدلية الخليل" className="kh-brand-logo" />
                 <span className="kh-brand-name">صيدلية <b>الخليل</b></span>
             </Link>
+            <SearchBox />
+            <div className="kh-header-icons">
+                <Link to="/account" className="kh-icon-btn" aria-label="حسابي"><Icon name="user" /><em>حسابي</em></Link>
+                <Link to="/notifications" className="kh-icon-btn" aria-label="الإشعارات" onClick={() => setSelectedId(null)}>
+                    <Icon name="bell" />
+                    {notif.unread > 0 && <b className="kh-badge">{notif.unread.toLocaleString('en-US')}</b>}
+                    <em>الإشعارات</em>
+                </Link>
+                <Link to="/cart" className="kh-icon-btn" aria-label="السلة" onClick={() => setSelectedId(null)}>
+                    <Icon name="cart" />
+                    {cart.count > 0 && <b className="kh-badge">{cart.count.toLocaleString('en-US')}</b>}
+                    <em>السلة</em>
+                </Link>
+            </div>
+        </div>
+        <div className="kh-navstrip">
             <nav className="kh-topnav" aria-label="التنقل الرئيسي">
                 {links.map((l) => <Link key={l.to} to={l.to} className={pathname === l.to ? 'is-active' : ''} onClick={() => { setSelectedId(null); if (l.to === '/') setCat('الكل'); window.scrollTo(0, 0); }}>{l.label}</Link>)}
             </nav>
-            <SearchBox />
-            <div className="kh-header-icons">
-                <Link to="/account" className="kh-icon-btn" aria-label="حسابي"><Icon name="user" /></Link>
-                <Link to="/cart" className="kh-icon-btn" aria-label="السلة">
-                    <Icon name="cart" />
-                    {cart.count > 0 && <b className="kh-badge">{cart.count.toLocaleString('en-US')}</b>}
-                </Link>
-                <span className="kh-icon-btn" aria-hidden="true"><Icon name="bell" /><i className="kh-dot" /></span>
-            </div>
+            <span className="kh-navnote"><Icon name="truck" size={16} /> توصيل مجاني على كل الطلبات، 24 ساعة</span>
         </div>
     </header>;
+}
+
+function NotificationsPage() {
+    const { items, markSeen } = React.useContext(NotifContext);
+    const [perm, setPerm] = useState<string>(() => ('Notification' in window ? Notification.permission : 'unsupported'));
+    React.useEffect(() => { markSeen(); }, [items.length]);
+    return <>
+        <ScrollTop />
+        <p className="kh-section">الإشعارات</p>
+        {perm === 'default' && <button type="button" className="kh-biglink" onClick={() => Notification.requestPermission().then((r) => setPerm(r))}>فعّل تنبيهات المتصفح</button>}
+        {items.length === 0 && <Caption>مفيش إشعارات لسه.</Caption>}
+        {items.map((n) => <div className="kh-card kh-notif" key={n.id}>
+            <span className="kh-notif-ico"><Icon name="bell" size={20} /></span>
+            <div><strong>{n.title}</strong>{n.body !== '' && <p>{n.body}</p>}<small>{fmtTime(n.created_at)}</small></div>
+        </div>)}
+    </>;
+}
+
+function AdminNotify() {
+    const [key] = useAdminKey();
+    const notif = React.useContext(NotifContext);
+    const [title, setTitle] = useState('');
+    const [body, setBody] = useState('');
+    const [state, setState] = useState<'idle' | 'busy' | 'ok' | 'err' | 'auth'>('idle');
+    const publish = () => {
+        setState('busy');
+        adminCall(key, 'publish-notification', { title: title.trim(), body: body.trim() })
+            .then(() => { setTitle(''); setBody(''); setState('ok'); notif.reload(); window.setTimeout(() => setState('idle'), 2500); })
+            .catch((e) => setState(e.message === 'unauthorized' ? 'auth' : 'err'));
+    };
+    const remove = (id: number) => { adminCall(key, 'delete-notification', { id }).then(() => notif.reload()).catch(() => {}); };
+    if (state === 'auth') return <AdminKeyError />;
+    return <>
+        <ScrollTop />
+        <AdminTabs active="notify" />
+        <p className="kh-section">نشر إشعار لكل العملاء</p>
+        <div className="kh-card kh-add-form">
+            <label className="kh-field"><span>عنوان الإشعار</span><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثال: خصم 20% على الفيتامينات" /></label>
+            <label className="kh-field"><span>النص (اختياري)</span><input value={body} onChange={(e) => setBody(e.target.value)} placeholder="تفاصيل الإشعار" /></label>
+            <button type="button" className="kh-confirm kh-confirm-big" disabled={title.trim() === '' || state === 'busy'} onClick={publish}>{state === 'ok' ? '✓ اتنشر لكل العملاء' : state === 'busy' ? 'جاري النشر...' : 'انشر الإشعار'}</button>
+            {state === 'err' && <Caption>تعذر النشر، حاول تاني.</Caption>}
+        </div>
+        <p className="kh-section">الإشعارات المنشورة</p>
+        {notif.items.length === 0 && <Caption>لسه ما نشرتش أي إشعار.</Caption>}
+        {notif.items.map((n) => <div className="kh-card kh-notif" key={n.id}>
+            <span className="kh-notif-ico"><Icon name="bell" size={20} /></span>
+            <div><strong>{n.title}</strong>{n.body !== '' && <p>{n.body}</p>}<small>{fmtTime(n.created_at)}</small></div>
+            <button type="button" className="kh-notif-del" onClick={() => remove(n.id)}>حذف</button>
+        </div>)}
+    </>;
 }
 
 function CartBar() {
@@ -278,6 +352,11 @@ function AddButton({ id }: { id: string }) {
     >{added ? '✓ اتضاف في السلة' : <><Icon name="cart" size={17} /> أضف للسلة</>}</button>;
 }
 
+const CAT_PHOTOS: string[][] = [[c0_1, c0_2], [c1_1, c1_2, c1_3], [c2_1, c2_2, c2_3], [c3_1, c3_2], [c4_1, c4_2]];
+function photoFor(c: number, id: string): string {
+    const list = CAT_PHOTOS[c] ?? CAT_PHOTOS[0];
+    return list[hashId(id) % list.length];
+}
 const CAT_ICON = ['pill', 'spray', 'vitamin', 'baby', 'stetho'] as const;
 
 function CatTile({ c, size = 30 }: { c: number; size?: number }) {
@@ -287,7 +366,7 @@ function CatTile({ c, size = 30 }: { c: number; size?: number }) {
 function ProductCard({ p }: { p: CatalogItem }) {
     const { setSelectedId } = useShop();
     return <div className="kh-card">
-        <button type="button" className="kh-card-photo kh-card-tile" onClick={() => setSelectedId(p.i)} aria-label={p.n}><CatTile c={p.c} size={44} /></button>
+        <button type="button" className="kh-card-photo kh-card-tile" onClick={() => setSelectedId(p.i)} aria-label={p.n}><img src={photoFor(p.c, p.i)} alt="" loading="lazy" /></button>
         <div className="kh-card-body">
             <button type="button" className="kh-card-name kh-name-btn" onClick={() => setSelectedId(p.i)}>{p.n}</button>
             <span className="kh-card-unit">{CAT_NAMES[p.c]}</span>
@@ -367,7 +446,7 @@ function CategoryRow() {
     return <div className="kh-cats" id="kh-cats">
         <p className="kh-section">الفئات</p>
         <div className="kh-cats-row">
-            {CATEGORY_ICONS.map((c) => <button
+            {CATEGORY_ICONS.map((c, ci) => <button
                 key={c.cat}
                 type="button"
                 className={`kh-cat${c.cat === cat ? ' is-active' : ''}`}
@@ -376,7 +455,7 @@ function CategoryRow() {
                     document.getElementById('kh-grid')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
                 }}
             >
-                <span className="kh-cat-icon"><Icon name={c.icon} size={26} /></span>
+                <span className="kh-cat-icon"><img src={CAT_PHOTOS[ci][0]} alt="" /></span>
                 <span className="kh-cat-label">{c.cat}</span>
             </button>)}
         </div>
@@ -490,8 +569,8 @@ function CategoriesPage() {
         <ScrollTop />
         <p className="kh-section">كل الأقسام</p>
         <div className="kh-catpage-grid">
-            {CATEGORY_ICONS.map((c) => <button key={c.cat} type="button" className="kh-cat kh-cat-big" onClick={() => { setCat(c.cat); navigate('/'); }}>
-                <span className="kh-cat-icon"><Icon name={c.icon} size={30} /></span>
+            {CATEGORY_ICONS.map((c, ci) => <button key={c.cat} type="button" className="kh-cat kh-cat-big" onClick={() => { setCat(c.cat); navigate('/'); }}>
+                <span className="kh-cat-icon"><img src={CAT_PHOTOS[ci][0]} alt="" /></span>
                 <span className="kh-cat-label">{c.cat}</span>
             </button>)}
         </div>
@@ -576,6 +655,8 @@ function ProductPage({ id }: { id: string }) {
     const { setSelectedId } = useShop();
     const product = BY_ID.get(id);
     const [qty, setQty] = useState(1);
+    const [pdpAdded, setPdpAdded] = useState(false);
+    const pdpTimer = useRef<number | undefined>(undefined);
     React.useEffect(() => setQty(1), [id]);
     const reviews = useMemo(() => reviewsFor(id), [id]);
     const related = useMemo(() => (product ? relatedFor(product) : []), [product]);
@@ -591,7 +672,7 @@ function ProductPage({ id }: { id: string }) {
         <ScrollTop />
         <div className="kh-pdp-stage">
             <span className="kh-pdp-badge">{CAT_NAMES[product.c]}</span>
-            <div className="kh-pdp-disc"><Icon name={CAT_ICON[product.c] ?? 'pill'} size={92} /></div>
+            <div className="kh-pdp-photo"><img src={photoFor(product.c, product.i)} alt={product.n} /></div>
         </div>
         <p className="kh-detail-name">{product.n}</p>
         <div className="kh-pdp-rate">
@@ -606,8 +687,13 @@ function ProductPage({ id }: { id: string }) {
                 <span>{qty.toLocaleString('en-US')}</span>
                 <button type="button" aria-label="قلل الكمية" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
             </div>
-            <button type="button" className="kh-confirm" onClick={() => { cart.add(product.i, qty); setSelectedId(null); }}>
-                أضف للسلة — {egp(product.p * qty)}
+            <button type="button" className={`kh-confirm${pdpAdded ? ' is-added' : ''}`} onClick={() => {
+                cart.add(product.i, qty);
+                setPdpAdded(true);
+                window.clearTimeout(pdpTimer.current);
+                pdpTimer.current = window.setTimeout(() => setPdpAdded(false), 1600);
+            }}>
+                {pdpAdded ? '✓ اتضاف في السلة' : <>أضف للسلة — {egp(product.p * qty)}</>}
             </button>
         </div>
 
@@ -962,6 +1048,7 @@ function AdminTabs({ active }: { active: string }) {
         { to: '/admin/orders', label: 'الأوردرات', key: 'orders' },
         { to: '/admin/products', label: 'المنتجات', key: 'products' },
         { to: '/admin/rx', label: 'الروشتات', key: 'rx' },
+        { to: '/admin/notify', label: 'الإشعارات', key: 'notify' },
     ];
     return <>
         <div className="kh-chips kh-admin-tabs">
@@ -1265,6 +1352,32 @@ export function App() {
         const t = window.setInterval(run, 300000);
         return () => window.clearInterval(t);
     }, []);
+    const [notifItems, setNotifItems] = useState<NotifRow[]>([]);
+    const [seenId, setSeenId] = useState<number>(() => { try { return Number(localStorage.getItem('kh_notif_seen') ?? '0'); } catch { return 0; } });
+    const notifFirst = useRef(true);
+    const reloadNotifs = React.useCallback(() => {
+        loadNotifications().then((l) => {
+            setNotifItems((prev) => {
+                const known = prev.length ? prev[0].id : 0;
+                if (!notifFirst.current && l.length && l[0].id > known && 'Notification' in window && Notification.permission === 'granted') {
+                    try { new Notification(l[0].title, { body: l[0].body, icon: './icons/icon-192.png', dir: 'rtl', lang: 'ar' }); } catch {}
+                }
+                return l;
+            });
+            notifFirst.current = false;
+        }).catch(() => {});
+    }, []);
+    React.useEffect(() => {
+        reloadNotifs();
+        const t = window.setInterval(reloadNotifs, 120000);
+        return () => window.clearInterval(t);
+    }, [reloadNotifs]);
+    const notifState = useMemo<NotifState>(() => ({
+        items: notifItems,
+        unread: notifItems.filter((n) => n.id > seenId).length,
+        markSeen: () => { const top = notifItems[0]?.id ?? 0; if (top > seenId) { setSeenId(top); try { localStorage.setItem('kh_notif_seen', String(top)); } catch {} } },
+        reload: reloadNotifs,
+    }), [notifItems, seenId, reloadNotifs]);
     const cartState = useCartState();
     const adminState = useAdminState();
     const [adminKey, setAdminKeyState] = useState<string>(() => {
@@ -1287,6 +1400,7 @@ export function App() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const shopState = useMemo(() => ({ cat, setCat, query, setQuery, selectedId, setSelectedId }), [cat, query, selectedId]);
     return <CartContext.Provider value={cartState}>
+        <NotifContext.Provider value={notifState}>
         <AdminKeyContext.Provider value={[adminKey, setAdminKey]}>
         <AdminContext.Provider value={adminState}>
         <UserContext.Provider value={userPhone ?? ''}>
@@ -1313,6 +1427,8 @@ export function App() {
                         <Route path="/admin/order/:id" element={<AdminGate><AdminOrderDetail /></AdminGate>} />
                         <Route path="/admin/products" element={<AdminGate><AdminProducts /></AdminGate>} />
                         <Route path="/admin/rx" element={<AdminGate><AdminRx /></AdminGate>} />
+                        <Route path="/admin/notify" element={<AdminGate><AdminNotify /></AdminGate>} />
+                        <Route path="/notifications" element={<NotificationsPage />} />
                     </Routes>}
                 </main>
                 {userPhone !== null && <BottomNav />}
@@ -1327,5 +1443,6 @@ export function App() {
         </UserContext.Provider>
         </AdminContext.Provider>
         </AdminKeyContext.Provider>
+        </NotifContext.Provider>
     </CartContext.Provider>;
 }

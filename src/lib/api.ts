@@ -76,6 +76,15 @@ export async function submitRx(input: {
     if (error) throw new Error(error.message);
 }
 
+export type NotifRow = { id: number; title: string; body: string; created_at: string };
+
+export async function loadNotifications(): Promise<NotifRow[]> {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('notifications').select('id,title,body,created_at').order('id', { ascending: false }).limit(50);
+    if (error || !data) return [];
+    return data.map((r) => ({ id: Number(r.id), title: String(r.title), body: String(r.body ?? ''), created_at: String(r.created_at) }));
+}
+
 // Prices the pharmacy edited from the admin panel (the bundled catalog has the originals).
 export async function loadPriceOverrides(): Promise<{ id: string; price: number }[]> {
     if (!supabase) return [];
@@ -87,6 +96,13 @@ export async function loadPriceOverrides(): Promise<{ id: string; price: number 
 // Admin calls go through the admin_api SQL function; the key is checked server-side.
 export async function adminCall<T = unknown>(key: string, action: string, payload: Record<string, unknown> = {}): Promise<T> {
     if (!supabase) throw new Error('backend not configured');
+    if (action === 'publish-notification' || action === 'delete-notification') {
+        const r = action === 'publish-notification'
+            ? await supabase.rpc('admin_notify', { p_key: key, p_title: String(payload.title ?? ''), p_body: String(payload.body ?? '') })
+            : await supabase.rpc('admin_notify_delete', { p_key: key, p_id: Number(payload.id) });
+        if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
+        return r.data as T;
+    }
     const { data, error } = await supabase.rpc('admin_api', { p_key: key, p_action: action, p_payload: payload });
     if (error) throw new Error(/unauthorized/i.test(error.message) ? 'unauthorized' : error.message);
     return data as T;
