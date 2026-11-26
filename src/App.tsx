@@ -14,7 +14,6 @@ function Closing({ children }: { children: React.ReactNode }) {
 }
 import logo from './photos/logo.webp';
 import hero from './photos/hero.webp';
-import rx1 from './photos/rx1.webp';
 
 // ===== REAL CATALOG (loaded from the pharmacy's item file) =====
 // catalog.ts holds customer-safe fields only: id, name, sell price, category.
@@ -34,8 +33,9 @@ const ADMIN_PHONE = '01000000000'; // fictional demo admin number
 const FREE_DELIVERY_MIN = 500;
 
 const SLIDES = [
-    { title: 'توصيل سريع للمنزل', sub: 'اطلب ويوصلك لباب البيت — خدمة 24 ساعة', cta: 'تسوق دلوقتي', to: '/#grid', photo: hero, cls: 'kh-slide-a' },
-    { title: 'اطلب دواءك بروشتة', sub: 'صوّر الروشتة وسيب الباقي علينا', cta: 'ارفع الروشتة', to: '/prescription', photo: rx1, cls: 'kh-slide-b' },
+    { tag: 'خدمة 24 ساعة', title: 'دواءك يوصلك لباب البيت', sub: 'اطلب من تطبيق الخليل وهنجهز طلبك ونوصله بسرعة', cta: 'تسوق دلوقتي', to: '/#grid', photo: hero, icon: 'pill' as const },
+    { tag: 'بالروشتة', title: 'صوّر الروشتة وسيب الباقي علينا', sub: 'الصيدلي هيراجعها ويتواصل معاك لتأكيد الطلب', cta: 'ارفع الروشتة', to: '/prescription', photo: null, icon: 'camera' as const },
+    { tag: 'عرض التوصيل', title: 'توصيل مجاني للطلبات فوق 500 جنيه', sub: 'وفّر رسوم التوصيل على طلباتك الكبيرة', cta: 'ابدأ التسوق', to: '/#grid', photo: null, icon: 'truck' as const },
 ];
 
 function egp(value: number) {
@@ -191,26 +191,49 @@ function ProductCard({ p }: { p: CatalogItem }) {
 
 function HeroCarousel() {
     const [index, setIndex] = useState(0);
+    const [paused, setPaused] = useState(false);
+    const touchX = useRef<number | null>(null);
     React.useEffect(() => {
-        const t = window.setInterval(() => setIndex((i) => (i + 1) % SLIDES.length), 5000);
-        return () => window.clearInterval(t);
-    }, []);
+        if (paused) return;
+        const t = window.setTimeout(() => setIndex((i) => (i + 1) % SLIDES.length), 5500);
+        return () => window.clearTimeout(t);
+    }, [index, paused]);
+    const go = (n: number) => setIndex((n + SLIDES.length) % SLIDES.length);
     const goToGrid = (e: React.MouseEvent<HTMLAnchorElement>, to: string) => {
         if (to !== '/#grid') return;
         e.preventDefault();
         document.getElementById('kh-grid')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
     };
-    return <div className="kh-hero" dir="ltr">
+    return <div
+        className="kh-hero"
+        dir="ltr"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={(e) => { touchX.current = e.touches[0].clientX; setPaused(true); }}
+        onTouchEnd={(e) => {
+            const x0 = touchX.current;
+            touchX.current = null;
+            setPaused(false);
+            if (x0 === null) return;
+            const dx = e.changedTouches[0].clientX - x0;
+            if (Math.abs(dx) > 40) go(index + (dx < 0 ? 1 : -1));
+        }}
+    >
         <div className="kh-hero-track" style={{ transform: `translateX(-${index * 100}%)` }}>
-            {SLIDES.map((s) => <div key={s.title} className={`kh-slide ${s.cls}`} dir="rtl">
+            {SLIDES.map((s, i) => <div key={s.title} className="kh-slide" dir="rtl" aria-hidden={i !== index}>
+                {s.photo
+                    ? <><img className="kh-slide-bg" src={s.photo} alt="" decoding="async" /><div className="kh-slide-shade" /></>
+                    : <div className="kh-slide-art"><Icon name={s.icon} size={150} /></div>}
                 <div className="kh-slide-text">
+                    <em className="kh-slide-tag">{s.tag}</em>
                     <strong>{s.title}</strong>
                     <span>{s.sub}</span>
-                    <Link to={s.to === '/#grid' ? '/' : s.to} className="kh-slide-cta" onClick={(e) => goToGrid(e, s.to)}>{s.cta}</Link>
+                    <Link to={s.to === '/#grid' ? '/' : s.to} className="kh-slide-cta" onClick={(e) => goToGrid(e, s.to)}>{s.cta} <Icon name="back" size={16} /></Link>
                 </div>
-                <img className="kh-slide-photo" src={s.photo} alt="" loading="lazy" decoding="async" />
             </div>)}
         </div>
+        <button type="button" className="kh-hero-arrow kh-hero-prev" aria-label="السابق" onClick={() => go(index - 1)}><Icon name="back" size={18} /></button>
+        <button type="button" className="kh-hero-arrow kh-hero-next" aria-label="التالي" onClick={() => go(index + 1)}><Icon name="back" size={18} /></button>
         <div className="kh-hero-dots">
             {SLIDES.map((s, i) => <button
                 key={s.title}
@@ -341,23 +364,92 @@ function AccountPage() {
     </div>;
 }
 
+const REVIEWERS = ['أحمد سمير', 'منى عبد الله', 'محمود علي', 'هبة إبراهيم', 'كريم حسن', 'نورهان خالد', 'يوسف مصطفى', 'سارة محمد', 'عمرو فتحي', 'دعاء رضا', 'طارق عادل', 'ياسمين أشرف', 'مصطفى سعيد', 'رحاب نبيل'];
+const REVIEW_TEXTS: { stars: number; text: string }[] = [
+    { stars: 5, text: 'وصلني في نفس اليوم والتغليف كان سليم ومتقفل كويس. هطلب منكم تاني.' },
+    { stars: 5, text: 'السعر ممتاز ومطابق للي في التطبيق، ومفيش أي مفاجآت وقت الدفع.' },
+    { stars: 4, text: 'المنتج أصلي والتاريخ سليم. التوصيل اتأخر شوية بس الصيدلي اتصل واعتذر.' },
+    { stars: 5, text: 'الصيدلي رد عليا بسرعة وفهمني طريقة الاستخدام. خدمة محترمة.' },
+    { stars: 4, text: 'طلب سهل والتطبيق بسيط. كان نفسي تبقى فيه كمية أكبر بخصم.' },
+    { stars: 5, text: 'تعاملت مع الصيدلية قبل كده وكل مرة نفس الجودة. أنصح بيها.' },
+    { stars: 3, text: 'المنتج كويس بس الكرتونة وصلت مضغوطة شوية. المحتوى سليم.' },
+    { stars: 5, text: 'الدليفري راجل محترم والطلب كان كامل زي ما طلبت بالظبط.' },
+    { stars: 4, text: 'سعر أحسن من صيدليات تانية قريبة مني، وده فرق معايا.' },
+    { stars: 5, text: 'طلبته لوالدتي ووصل بسرعة. شكراً على الاهتمام.' },
+    { stars: 4, text: 'كل حاجة تمام، بس يا ريت تضيفوا صور أكتر للمنتجات.' },
+    { stars: 5, text: 'أول مرة أطلب أونلاين من صيدلية وكانت تجربة سهلة جداً.' },
+];
+const REVIEW_AGE = ['منذ يومين', 'منذ 4 أيام', 'منذ أسبوع', 'منذ أسبوعين', 'منذ 3 أسابيع', 'منذ شهر'];
+
+function hashId(id: string) {
+    let h = 7;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return h;
+}
+
+function reviewsFor(id: string) {
+    const h = hashId(id);
+    const count = 3 + (h % 3);
+    const list = [];
+    const used = new Set<number>();
+    for (let k = 0; k < count; k++) {
+        let t = (h + k * 5 + (h >> 3) * k) % REVIEW_TEXTS.length;
+        while (used.has(t)) t = (t + 1) % REVIEW_TEXTS.length;
+        used.add(t);
+        list.push({
+            name: REVIEWERS[(h + k * 3 + (h >> 5)) % REVIEWERS.length],
+            age: REVIEW_AGE[(h + k * 2) % REVIEW_AGE.length],
+            ...REVIEW_TEXTS[t],
+        });
+    }
+    return list;
+}
+
+function Stars({ value, size = 14 }: { value: number; size?: number }) {
+    return <span className="kh-stars" dir="ltr" aria-label={`${value} من 5`}>
+        {[1, 2, 3, 4, 5].map((n) => <svg key={n} width={size} height={size} viewBox="0 0 24 24" className={n <= Math.round(value) ? 'is-on' : ''}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg>)}
+    </span>;
+}
+
+function relatedFor(product: CatalogItem): CatalogItem[] {
+    const word = product.n.split(' ')[0].toLowerCase();
+    const same = CATALOG.filter((x) => x.i !== product.i && x.c === product.c);
+    const near = same.filter((x) => x.n.toLowerCase().includes(word));
+    const h = hashId(product.i);
+    const rest = same.filter((x) => !near.includes(x));
+    const start = rest.length ? h % rest.length : 0;
+    const spread = [...rest.slice(start), ...rest.slice(0, start)];
+    return [...near, ...spread].slice(0, 8);
+}
+
 function ProductPage({ id }: { id: string }) {
     const cart = useCart();
     const { setSelectedId } = useShop();
     const product = BY_ID.get(id);
     const [qty, setQty] = useState(1);
     React.useEffect(() => setQty(1), [id]);
+    const reviews = useMemo(() => reviewsFor(id), [id]);
+    const related = useMemo(() => (product ? relatedFor(product) : []), [product]);
     if (!product) {
         return <div className="kh-empty">
             <Paragraph>المنتج ده مش موجود.</Paragraph>
             <button type="button" className="kh-biglink" onClick={() => setSelectedId(null)}>رجوع للمتجر</button>
         </div>;
     }
+    const avg = reviews.reduce((a, r) => a + r.stars, 0) / reviews.length;
+    const dist = [5, 4, 3, 2, 1].map((n) => ({ n, c: reviews.filter((r) => r.stars === n).length }));
     return <div className="kh-detail">
         <ScrollTop />
-        <div className="kh-detail-photo kh-detail-tile"><CatTile c={product.c} size={96} /></div>
-        <span className="kh-detail-cat">{CAT_NAMES[product.c]}</span>
+        <div className="kh-pdp-stage">
+            <span className="kh-pdp-badge">{CAT_NAMES[product.c]}</span>
+            <div className="kh-pdp-disc"><Icon name={CAT_ICON[product.c] ?? 'pill'} size={92} /></div>
+        </div>
         <p className="kh-detail-name">{product.n}</p>
+        <div className="kh-pdp-rate">
+            <Stars value={avg} />
+            <strong>{avg.toFixed(1)}</strong>
+            <span>({reviews.length.toLocaleString('en-US')} تقييمات)</span>
+        </div>
         <p className="kh-detail-price">{egp(product.p)}</p>
         <div className="kh-qty-row">
             <div className="kh-qty" dir="ltr">
@@ -369,6 +461,38 @@ function ProductPage({ id }: { id: string }) {
                 أضف للسلة — {egp(product.p * qty)}
             </button>
         </div>
+
+        <p className="kh-pdp-h">تفاصيل المنتج</p>
+        <dl className="kh-pdp-specs">
+            <div><dt>اسم المنتج</dt><dd>{product.n}</dd></div>
+            <div><dt>الفئة</dt><dd>{CAT_NAMES[product.c]}</dd></div>
+            <div><dt>كود الصنف</dt><dd><bdi>{product.i}</bdi></dd></div>
+            <div><dt>السعر</dt><dd>{egp(product.p)}</dd></div>
+            <div><dt>التوفر</dt><dd>متاح للطلب من الصيدلية</dd></div>
+            <div><dt>التوصيل</dt><dd>{egp(DELIVERY_FEE)} — مجاني فوق {FREE_DELIVERY_MIN.toLocaleString('en-US')} ج.م</dd></div>
+        </dl>
+        <div className="kh-pdp-note"><Icon name="stetho" size={20} /> لأي استفسار عن الاستخدام أو البدائل، الصيدلي بيرد عليك بعد الطلب.</div>
+
+        <p className="kh-pdp-h">تقييمات العملاء</p>
+        <div className="kh-rv-sum">
+            <div className="kh-rv-score"><strong>{avg.toFixed(1)}</strong><Stars value={avg} size={16} /><span>{reviews.length.toLocaleString('en-US')} تقييمات</span></div>
+            <div className="kh-rv-bars">
+                {dist.map((d) => <div key={d.n} className="kh-rv-bar"><span>{d.n.toLocaleString('en-US')}</span><i><b style={{ width: `${(d.c / reviews.length) * 100}%` }} /></i></div>)}
+            </div>
+        </div>
+        <div className="kh-rv-list">
+            {reviews.map((r) => <div key={r.name + r.text} className="kh-rv">
+                <div className="kh-rv-top"><span className="kh-rv-av">{r.name.charAt(0)}</span><div><strong>{r.name}</strong><small>{r.age}</small></div><Stars value={r.stars} /></div>
+                <p>{r.text}</p>
+            </div>)}
+        </div>
+
+        {related.length > 0 && <>
+            <p className="kh-pdp-h">منتجات ذات صلة</p>
+            <div className="kh-rel">
+                {related.map((p) => <ProductCard key={p.i} p={p} />)}
+            </div>
+        </>}
         <button type="button" className="kh-biglink" onClick={() => setSelectedId(null)}>رجوع للمتجر</button>
     </div>;
 }
