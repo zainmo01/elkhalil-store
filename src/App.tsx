@@ -1103,7 +1103,14 @@ export function App() {
         try { k === '' ? localStorage.removeItem('kh_admin_key') : localStorage.setItem('kh_admin_key', k); } catch {}
         setAdminKeyState(k);
     };
-    const [userPhone, setUserPhone] = useState<string | null>(null);
+    const [userPhone, setUserPhoneRaw] = useState<string | null>(() => {
+        try { return localStorage.getItem('kh_session_phone'); } catch { return null; }
+    });
+    // Session lives in localStorage: survives refresh and app updates, ends only on explicit logout.
+    const setUserPhone = (p: string | null) => {
+        try { p === null ? localStorage.removeItem('kh_session_phone') : localStorage.setItem('kh_session_phone', p); } catch {}
+        setUserPhoneRaw(p);
+    };
     const [cat, setCat] = useState('الكل');
     const [query, setQuery] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
