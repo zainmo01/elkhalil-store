@@ -13,7 +13,8 @@ function Closing({ children }: { children: React.ReactNode }) {
     return <footer className="kh-closing">{children}</footer>;
 }
 import logo from './photos/logo.webp';
-import hero from './photos/hero.webp';
+import shelf1 from './photos/shelf1.webp';
+import shelf2 from './photos/shelf2.webp';
 import c0_1 from './photos/cat/c0_1.webp';
 import c0_2 from './photos/cat/c0_2.webp';
 import c1_1 from './photos/cat/c1_1.webp';
@@ -43,9 +44,9 @@ const DELIVERY_FEE = 0; // delivery is free on everything, 24 hours
 const ADMIN_PHONE = '01000000000'; // fictional demo admin number
 
 const SLIDES = [
-    { tag: 'خدمة 24 ساعة', title: 'دواءك يوصلك لباب البيت', sub: 'اطلب من تطبيق الخليل وهنجهز طلبك ونوصله بسرعة', cta: 'تسوق دلوقتي', to: '/#grid', photo: hero, icon: 'pill' as const },
+    { tag: 'خدمة 24 ساعة', title: 'دواءك يوصلك لباب البيت', sub: 'اطلب من تطبيق الخليل وهنجهز طلبك ونوصله بسرعة', cta: 'تسوق دلوقتي', to: '/#grid', photo: shelf1, icon: 'pill' as const },
     { tag: 'بالروشتة', title: 'صوّر الروشتة وسيب الباقي علينا', sub: 'الصيدلي هيراجعها ويتواصل معاك لتأكيد الطلب', cta: 'ارفع الروشتة', to: '/prescription', photo: null, icon: 'camera' as const },
-    { tag: 'عرض التوصيل', title: 'توصيل مجاني على كل طلب', sub: 'على مدار 24 ساعة، من غير حد أدنى ولا رسوم', cta: 'ابدأ التسوق', to: '/#grid', photo: null, icon: 'truck' as const },
+    { tag: 'عرض التوصيل', title: 'توصيل مجاني على كل طلب', sub: 'على مدار 24 ساعة، من غير حد أدنى ولا رسوم', cta: 'ابدأ التسوق', to: '/#grid', photo: shelf2, icon: 'truck' as const },
 ];
 
 function egp(value: number) {

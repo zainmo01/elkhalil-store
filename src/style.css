@@ -1873,3 +1873,5 @@ a, button { touch-action: manipulation; }
 .kh-badge { animation: khBadge .16s ease-out; }
 @keyframes khBadge { from { transform: scale(.7); } to { transform: scale(1); } }
 .kh-sugg-add, .kh-confirm { transition: background-color .1s linear !important; }
+
+.kh-slide-shade { background: linear-gradient(to left, rgba(5,50,42,.93) 20%, rgba(5,50,42,.72) 62%, rgba(5,50,42,.45)); }
