@@ -556,14 +556,21 @@ function CatTile({ c, size = 30 }: { c: number; size?: number }) {
     return <span className="kh-tile"><Icon name={CAT_ICON[c] ?? 'pill'} size={size} /></span>;
 }
 
+const FEAT_SET: { s: Set<string> } = { s: new Set() };
 function ProductCard({ p }: { p: CatalogItem }) {
     const { setSelectedId } = useShop();
-    return <div className="kh-card">
-        <button type="button" className="kh-card-photo kh-card-tile" onClick={() => setSelectedId(p.i)} aria-label={p.n}><img src={photoFor(p.c, p.i)} alt="" loading="lazy" /></button>
+    const [ok, setOk] = useState(false);
+    const feat = FEAT_SET.s.has(p.i);
+    return <div className={`kh-card${feat ? ' is-feat' : ''}`}>
+        <button type="button" className="kh-card-photo kh-card-tile" onClick={() => setSelectedId(p.i)} aria-label={p.n}>
+            <img className={ok ? 'is-ok' : ''} src={photoFor(p.c, p.i)} alt="" loading="lazy" onLoad={() => setOk(true)} ref={(el) => { if (el && el.complete && !ok) setOk(true); }} />
+            {feat && <span className="kh-badge-feat"><Icon name="star" size={12} /> مختار</span>}
+            <span className="kh-badge-free"><Icon name="truck" size={12} /> مجاني</span>
+        </button>
         <div className="kh-card-body">
-            <button type="button" className="kh-card-name kh-name-btn" onClick={() => setSelectedId(p.i)}>{p.n}</button>
             <span className="kh-card-unit">{CAT_NAMES[p.c]}</span>
-            <span className="kh-card-price"><bdi>{fmtPrice(p.p)}</bdi> ج.م</span>
+            <button type="button" className="kh-card-name kh-name-btn" onClick={() => setSelectedId(p.i)}>{p.n}</button>
+            <span className="kh-card-price"><bdi>{fmtPrice(p.p)}</bdi> <small>ج.م</small></span>
             <AddButton id={p.i} />
         </div>
     </div>;
@@ -600,7 +607,7 @@ function HeroCarousel() {
         }}
     >
         <div className="kh-hero-track" style={{ transform: `translateX(-${index * 100}%)` }}>
-            {SLIDES.map((s, i) => <div key={s.title} className="kh-slide" dir="rtl" aria-hidden={i !== index}>
+            {SLIDES.map((s, i) => <div key={s.title} className={`kh-slide${i === index ? ' is-on' : ''}`} dir="rtl" aria-hidden={i !== index}>
                 {s.photo
                     ? <><img className="kh-slide-bg" src={s.photo} alt="" decoding="async" /><div className="kh-slide-shade" /></>
                     : <div className="kh-slide-art"><Icon name={s.icon} size={150} /></div>}
@@ -655,6 +662,16 @@ function CategoryRow() {
     </div>;
 }
 
+function TrustStrip() {
+    const items: { icon: keyof typeof PATHS; t: string; s: string }[] = [
+        { icon: 'truck', t: 'توصيل مجاني', s: 'لكل الطلبات' },
+        { icon: 'shield', t: 'متاحين دايماً', s: '24 ساعة' },
+        { icon: 'star', t: 'نقاط ولاء', s: 'على كل طلب' },
+        { icon: 'camera', t: 'ارفع روشتة', s: 'والصيدلي يتواصل' },
+    ];
+    return <div className="kh-trust">{items.map((x) => <div key={x.t} className="kh-trust-i"><span><Icon name={x.icon} size={18} /></span><b>{x.t}</b><em>{x.s}</em></div>)}</div>;
+}
+
 function RxBanner() {
     return <section className="kh-svc">
         <Link to="/prescription" className="kh-rx-banner">
@@ -697,6 +714,7 @@ function Shop() {
     React.useEffect(() => setLimit(GRID_PAGE), [cat, query]);
     const q = query.trim().toLowerCase();
     const [featIds] = useFeatured();
+    FEAT_SET.s = new Set(featIds);
     let shown = cat === 'الكل' ? CATALOG : CATALOG.filter((p) => p.c === CAT_NAMES.indexOf(cat));
     if (q !== '') shown = shown.filter((p) => p.n.toLowerCase().includes(q));
     else if (featIds.length > 0) {
@@ -712,6 +730,7 @@ function Shop() {
     return <>
         <ScrollTop />
         <HeroCarousel />
+        <TrustStrip />
         <CategoryRow />
         <RxBanner />
         <CartBar />
