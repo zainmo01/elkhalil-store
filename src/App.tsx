@@ -45,7 +45,7 @@ const DELIVERY_FEE = 0; // delivery is free on everything, 24 hours
 const ADMIN_PHONE = '01000000000'; // fictional demo admin number
 
 const SLIDES = [
-    { tag: 'خدمة 24 ساعة', title: 'دواءك يوصلك لباب البيت', sub: 'اطلب من تطبيق الخليل وهنجهز طلبك ونوصله بسرعة', cta: 'تسوق دلوقتي', to: '/#grid', photo: shelf1, pos: '50% 19%', icon: 'pill' as const },
+    { tag: 'خدمة 24 ساعة', title: 'دواءك يوصلك لباب البيت', sub: 'اطلب من تطبيق الخليل وهنجهز طلبك ونوصله بسرعة', cta: 'تسوق دلوقتي', to: '/#grid', photo: shelf1, pos: '50% 9%', icon: 'pill' as const },
     { tag: 'بالروشتة', title: 'صوّر الروشتة وسيب الباقي علينا', sub: 'الصيدلي هيراجعها ويتواصل معاك لتأكيد الطلب', cta: 'ارفع الروشتة', to: '/prescription', photo: null, icon: 'camera' as const },
     { tag: 'عرض التوصيل', title: 'توصيل مجاني على كل طلب', sub: 'على مدار 24 ساعة، من غير حد أدنى ولا رسوم', cta: 'ابدأ التسوق', to: '/#grid', photo: shelf2, pos: '50% 0%', icon: 'truck' as const },
     { tag: 'عناية وتجميل', title: 'العناية والتجميل', sub: 'عناية بالبشرة والشعر ومستحضرات من أشهر الماركات', cta: 'تصفح المنتجات', to: '/#grid', photo: shelf3, pos: '50% 40%', icon: 'pill' as const },
