@@ -32,7 +32,7 @@ def score(a, b):
     return len(A & B) / len(A | B)
 
 def load_catalog():
-    cat = json.load(open(os.path.join(ROOT, 'src', 'catalog-data.json'), encoding='utf-8'))
+    cat = json.load(open(os.path.join(ROOT, 'scripts', 'catalog-source.json'), encoding='utf-8'))
     items = [(c['i'], c['n'], norm(c['n'])) for c in cat]
     inv = {}
     for k, (_, _, (w, _)) in enumerate(items):

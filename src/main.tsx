@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
-import { loadCatalog } from './catalog';
+import { loadCatalog, loadRestInBackground } from './catalog';
 import '@fontsource/tajawal/arabic-400.css';
 import '@fontsource/tajawal/arabic-500.css';
 import '@fontsource/tajawal/arabic-700.css';
@@ -19,6 +19,10 @@ Promise.all([loadCatalog(), import('./App')]).then(([, mod]) => {
             <App />
         </HashRouter>
     );
+    // Rest of the catalog streams in after the first paint, a part at a time.
+    const go = () => { void loadRestInBackground(); };
+    if ('requestIdleCallback' in window) (window as unknown as { requestIdleCallback: (f: () => void, o: object) => void }).requestIdleCallback(go, { timeout: 1500 });
+    else setTimeout(go, 600);
 });
 
 if ('serviceWorker' in navigator) {

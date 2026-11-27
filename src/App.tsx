@@ -29,7 +29,7 @@ import c4_2 from './photos/cat/c4_2.webp';
 
 // ===== REAL CATALOG (loaded from the pharmacy's item file) =====
 // catalog.ts holds customer-safe fields only: id, name, sell price, category.
-import { CATALOG, BY_ID } from './catalog';
+import { CATALOG, BY_ID, useCatalogVersion, isCatalogReady, catalogHooks } from './catalog';
 import type { CatalogItem } from './catalog';
 
 const CAT_NAMES = ['الأدوية', 'العناية', 'الفيتامينات', 'الأم والطفل', 'أجهزة طبية'];
@@ -155,7 +155,12 @@ const norm = (t: string) => t.toLowerCase()
     .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
 let SEARCH_INDEX_C: { p: CatalogItem; n: string }[] | null = null;
-function searchIndex() { return SEARCH_INDEX_C ?? (SEARCH_INDEX_C = CATALOG.map((p) => ({ p, n: norm(p.n) }))); }
+function searchIndex() {
+    const idx = SEARCH_INDEX_C ?? (SEARCH_INDEX_C = []);
+    for (let k = idx.length; k < CATALOG.length; k++) idx.push({ p: CATALOG[k], n: norm(CATALOG[k].n) }); // extends as catalog parts arrive
+    return idx;
+}
+catalogHooks.push(() => { if (SEARCH_INDEX_C) searchIndex(); });
 
 function searchProducts(q: string, max = 8): CatalogItem[] {
     const tokens = norm(q).trim().split(/\s+/).filter(Boolean);
@@ -858,23 +863,26 @@ function useFeatured(): [string[], (ids: string[]) => void] {
 
 function Shop() {
     const { cat, setCat, query } = useShop();
+    const catVer = useCatalogVersion();
     const [limit, setLimit] = useState(GRID_PAGE);
     React.useEffect(() => setLimit(GRID_PAGE), [cat, query]);
     const q = query.trim().toLowerCase();
     const [featIds] = useFeatured();
     FEAT_SET.s = new Set(featIds);
-    let shown = cat === 'الكل' ? CATALOG : CATALOG.filter((p) => p.c === CAT_NAMES.indexOf(cat));
-    if (q !== '') shown = shown.filter((p) => p.n.toLowerCase().includes(q));
-    else if (featIds.length > 0) {
-        // Admin-curated picks first, in the admin's order; the rest keeps today's order.
-        const picks = featIds.map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p && (cat === 'الكل' || p.c === CAT_NAMES.indexOf(cat)));
-        if (picks.length > 0) {
-            const ps = new Set(picks.map((p) => p.i));
-            shown = [...picks, ...shown.filter((p) => !ps.has(p.i))];
-        }
-    }
-    const visible = shown.slice(0, limit);
-    const remaining = shown.length - visible.length;
+    const ci = CAT_NAMES.indexOf(cat);
+    const base = useMemo(() => {
+        let b: CatalogItem[] = cat === 'الكل' ? CATALOG : CATALOG.filter((p) => p.c === ci);
+        if (q !== '') b = b.filter((p) => p.n.toLowerCase().includes(q));
+        return b;
+    }, [cat, q, catVer]);
+    // Admin-curated picks first, in the admin's order; the rest keeps today's order. Only the visible page is built.
+    const picks = q === '' ? featIds.map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p && (cat === 'الكل' || p.c === ci)) : [];
+    const ps = new Set(picks.map((p) => p.i));
+    const visible: CatalogItem[] = picks.slice(0, limit);
+    for (let k = 0; k < base.length && visible.length < limit; k++) if (!ps.has(base[k].i)) visible.push(base[k]);
+    const total = Math.max(base.length, picks.length);
+    const shown = { length: total };
+    const remaining = total - visible.length;
     return <>
         <ScrollTop />
         <Greeting />
@@ -891,7 +899,7 @@ function Shop() {
             {CATEGORIES.map((c) => <button key={c} type="button" className={`kh-chip${c === cat ? ' is-active' : ''}`} onClick={() => setCat(c)}>{c}</button>)}
         </div>
         {shown.length === 0
-            ? <div className="kh-empty"><Paragraph>مفيش منتجات مطابقة للبحث ده.</Paragraph></div>
+            ? <div className="kh-empty"><Paragraph>{isCatalogReady() ? 'مفيش منتجات مطابقة للبحث ده.' : 'جارٍ تحميل الأصناف…'}</Paragraph></div>
             : <div className="kh-grid">{visible.map((p) => <ProductCard key={p.i} p={p} />)}</div>}
         {remaining > 0 && <button type="button" className="kh-confirm kh-more" onClick={() => setLimit((l) => l + GRID_PAGE)}>
             عرض المزيد — باقي {remaining.toLocaleString('en-US')} صنف
@@ -1124,7 +1132,10 @@ function ProductPage({ id }: { id: string }) {
     const pdpTimer = useRef<number | undefined>(undefined);
     React.useEffect(() => setQty(1), [id]);
     const reviews = useMemo(() => reviewsFor(id), [id]);
-    const related = useMemo(() => (product ? relatedFor(product) : []), [product]);
+    const catReady = isCatalogReady();
+    const related = useMemo(() => (product ? relatedFor(product) : []), [product, catReady]);
+    useCatalogVersion();
+    if (!product && !isCatalogReady()) return <div className="kh-empty"><Paragraph>جارٍ التحميل…</Paragraph></div>;
     if (!product) {
         return <div className="kh-empty">
             <Paragraph>المنتج ده مش موجود.</Paragraph>
@@ -2018,7 +2029,8 @@ export function App() {
     const [cat, setCat] = useState('الكل');
     const [query, setQuery] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const shopState = useMemo(() => ({ cat, setCat, query, setQuery, selectedId, setSelectedId }), [cat, query, selectedId]);
+    const catVerRoot = useCatalogVersion();
+    const shopState = useMemo(() => ({ cat, setCat, query, setQuery, selectedId, setSelectedId }), [cat, query, selectedId, catVerRoot]);
     return <CartContext.Provider value={guardedCart}>
         <LoyaltyContext.Provider value={{ info: loyalty, reload: reloadLoyalty }}>
         <NotifContext.Provider value={notifState}>
