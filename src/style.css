@@ -1389,6 +1389,10 @@ p { margin: 8px 0; line-height: 1.75; }
 .kh-sugg-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; line-height: 1.4; display: flex; flex-direction: column; }
 .kh-sugg-name small { font-size: 11px; font-weight: 400; color: var(--kh-muted); }
 .kh-sugg-price { font-size: 13px; white-space: nowrap; }
+.kh-sugg-add { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 0; background: #0a6b52; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s, transform .1s; }
+.kh-sugg-add:hover { background: #05483c; }
+.kh-sugg-add:active { transform: scale(.92); }
+.kh-sugg-add.is-added { background: #c9a227; color: #05483c; }
 .kh-sugg-all { display: block; width: 100%; border: 0; border-top: 1px solid var(--kh-hairline); background: #f5faf8; padding: 11px; font: inherit; font-weight: 700; font-size: 13px; color: #05483c; cursor: pointer; }
 .kh-sugg-empty { margin: 0; padding: 16px; text-align: center; color: var(--kh-muted); font-size: 13px; }
 

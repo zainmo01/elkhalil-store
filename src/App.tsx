@@ -250,6 +250,7 @@ function SearchBox() {
                         <span className="kh-sugg-ico"><Icon name={CAT_ICON[p.c] ?? 'pill'} size={20} /></span>
                         <span className="kh-sugg-name">{p.n}<small>{CAT_NAMES[p.c]}</small></span>
                         <b className="kh-sugg-price"><bdi>{fmtPrice(p.p)}</bdi> ج.م</b>
+                        <SuggAdd id={p.i} />
                     </li>)}
                 </ul>}
             {results.length > 0 && <button type="button" className="kh-sugg-all" onMouseDown={(e) => e.preventDefault()} onClick={showAll}>عرض كل النتائج</button>}
@@ -424,6 +425,25 @@ function CartBar() {
         <span>عرض السلة ({cart.count.toLocaleString('en-US')})</span>
         <span>{egp(cart.total)}</span>
     </Link>;
+}
+
+function SuggAdd({ id }: { id: string }) {
+    const cart = useCart();
+    const [added, setAdded] = useState(false);
+    const timer = useRef<number | undefined>(undefined);
+    return <button
+        type="button"
+        className={`kh-sugg-add${added ? ' is-added' : ''}`}
+        aria-label="أضف للسلة"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => {
+            e.stopPropagation();
+            cart.add(id);
+            setAdded(true);
+            window.clearTimeout(timer.current);
+            timer.current = window.setTimeout(() => setAdded(false), 1400);
+        }}
+    >{added ? <Icon name="check" size={18} /> : <Icon name="cart" size={18} />}</button>;
 }
 
 function AddButton({ id }: { id: string }) {
