@@ -20,6 +20,31 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((r) => r.update()).catch(() => {});
     });
 }
+
+// Fresh-deploy check: compare the running bundle with the live index.html and reload
+// once if a newer one exists. Runs at app open and whenever the app returns to the
+// foreground. It never reloads while a prescription or checkout is being filled in.
+function runningBundle(): string {
+    const s = document.querySelector('script[src*="assets/index-"]') as HTMLScriptElement | null;
+    return s?.getAttribute('src')?.match(/index-[A-Za-z0-9_-]+\.js/)?.[0] ?? '';
+}
+async function checkForUpdate() {
+    try {
+        const mine = runningBundle();
+        if (!mine) return;
+        const last = Number(sessionStorage.getItem('kh_upd') ?? '0');
+        if (Date.now() - last < 30000) return;
+        const res = await fetch(`./index.html?t=${Date.now()}`, { cache: 'no-store' });
+        const live = (await res.text()).match(/index-[A-Za-z0-9_-]+\.js/)?.[0];
+        if (live && live !== mine) {
+            if (/#\/(prescription|cart)/.test(location.hash)) return;
+            sessionStorage.setItem('kh_upd', String(Date.now()));
+            location.reload();
+        }
+    } catch { /* offline: ignore */ }
+}
+window.addEventListener('load', () => { void checkForUpdate(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void checkForUpdate(); });

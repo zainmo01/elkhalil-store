@@ -9,5 +9,11 @@ self.addEventListener('activate', (event) => {
 });
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
+    // Pages are always revalidated with the server (GitHub Pages would otherwise let the
+    // HTTP cache serve an old index.html for up to 10 minutes after a deploy).
+    if (event.request.mode === 'navigate') {
+        event.respondWith(fetch(event.request, { cache: 'no-cache' }));
+        return;
+    }
     event.respondWith(fetch(event.request));
 });
