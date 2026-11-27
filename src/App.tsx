@@ -625,7 +625,7 @@ function SuggAdd({ id }: { id: string }) {
             cart.add(id);
             setAdded(true);
             window.clearTimeout(timer.current);
-            timer.current = window.setTimeout(() => setAdded(false), 1400);
+            timer.current = window.setTimeout(() => setAdded(false), 800);
         }}
     >{added ? <Icon name="check" size={18} /> : <Icon name="cart" size={18} />}</button>;
 }
@@ -641,9 +641,9 @@ function AddButton({ id }: { id: string }) {
             cart.add(id);
             setAdded(true);
             window.clearTimeout(timer.current);
-            timer.current = window.setTimeout(() => setAdded(false), 1600);
+            timer.current = window.setTimeout(() => setAdded(false), 800);
         }}
-    >{added ? '✓ اتضاف في السلة' : <><Icon name="cart" size={17} /> أضف للسلة</>}</button>;
+    >{added ? <><Icon name="check" size={17} /> اتضاف</> : <><Icon name="cart" size={17} /> أضف للسلة</>}</button>;
 }
 
 const CAT_PHOTOS: string[][] = [[c0_1, c0_2], [c1_1, c1_2, c1_3], [c2_1, c2_2, c2_3], [c3_1, c3_2], [c4_1, c4_2]];

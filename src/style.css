@@ -1865,3 +1865,11 @@ a, button { touch-action: manipulation; }
 .kh-qty-wrap { display: flex; align-items: center; gap: 8px; flex: none; }
 .kh-qty-del { width: 38px; height: 38px; border-radius: 12px; border: 1px solid #f3caca; background: #fff5f5; color: #b91c1c; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
 .kh-qty-wrap .kh-qty button:disabled { opacity: .35; }
+
+/* fast, subtle add-to-cart feedback: no scale-from-zero, no long transitions */
+.kh-card .kh-add, .kh-card .kh-add.is-added { animation: none !important; transition: background-color .1s linear, transform .08s ease !important; }
+.kh-card .kh-add.is-added, .kh-add.is-added { background: #0f8a5f; background-image: none; }
+.kh-card .kh-add:active, .kh-add:active { transform: scale(.97); }
+.kh-badge { animation: khBadge .16s ease-out; }
+@keyframes khBadge { from { transform: scale(.7); } to { transform: scale(1); } }
+.kh-sugg-add, .kh-confirm { transition: background-color .1s linear !important; }
