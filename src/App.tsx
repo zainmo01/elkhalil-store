@@ -1670,6 +1670,7 @@ export function App() {
     // A saved admin key is a permanent admin session: browse the whole site without a customer login.
     React.useEffect(() => { if (adminKey !== '' && userPhone === null) setUserPhone(ADMIN_PHONE); });
     const [loginOpen, setLoginOpen] = useState(false);
+    const goNav = useNavigate();
     const pendingAdd = useRef<{ id: string; qty: number } | null>(null);
     const [loyalty, setLoyalty] = useState<LoyaltyInfo | null>(null);
     const reloadLoyalty = React.useCallback(() => {
@@ -1722,7 +1723,7 @@ export function App() {
                 <Header />
                 <main className={`kh-main${pathname === '/' || pathname === '/categories' ? ' kh-main-wide' : ' kh-main-narrow'}`}>
                 {userPhone === null && (loginOpen || !['/', '/categories', '/notifications'].includes(pathname) && !pathname.startsWith('/admin'))
-                    ? <LoginPage onLogin={(p) => { setUserPhone(p); setLoginOpen(false); }} onCancel={loginOpen ? () => { pendingAdd.current = null; setLoginOpen(false); } : undefined} />
+                    ? <LoginPage onLogin={(p) => { setUserPhone(p); setLoginOpen(false); setSelectedId(null); setCat('الكل'); setQuery(''); goNav('/'); window.scrollTo(0, 0); }} onCancel={loginOpen ? () => { pendingAdd.current = null; setLoginOpen(false); } : undefined} />
                     : selectedId !== null
                     ? <ProductPage id={selectedId} />
                     : <Routes>
