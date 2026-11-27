@@ -1742,6 +1742,8 @@ export function App() {
     };
     // A saved admin key is a permanent admin session: browse the whole site without a customer login.
     React.useEffect(() => { if (adminKey !== '' && userPhone === null) setUserPhone(ADMIN_PHONE); });
+    // Admin mode only ever exists together with a saved admin key; a bare admin phone in storage is dropped.
+    React.useEffect(() => { if (adminKey === '' && userPhone === ADMIN_PHONE) setUserPhone(null); });
     const [loginOpen, setLoginOpen] = useState(false);
     const goNav = useNavigate();
     const pendingAdd = useRef<{ id: string; qty: number } | null>(null);
