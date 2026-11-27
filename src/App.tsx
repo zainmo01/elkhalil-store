@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { getAnnouncement, getFeatured, myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
+import { getPhotoIds, getPhotos, getAnnouncement, getFeatured, myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
 import type { OrderRow, RxRow, NotifRow, LoyaltyInfo } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
@@ -421,7 +421,7 @@ function AdminFeatured() {
                     {res.map((p) => {
                         const on = ids.includes(p.i);
                         return <li key={p.i}>
-                            <img className="kh-ft-img" src={photoFor(p.c, p.i)} alt="" loading="lazy" />
+                            <span className="kh-ft-img"><ProdImg c={p.c} i={p.i} loading="lazy" /></span>
                             <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(p.p)} ج.م</small></span>
                             <button type="button" className={`kh-ft-add${on ? ' is-on' : ''}`} disabled={on} onClick={() => save([...ids, p.i])}>{on ? '✓ مضاف' : '+ إضافة'}</button>
                         </li>;
@@ -437,7 +437,7 @@ function AdminFeatured() {
                 : <ol className="kh-ft-list">
                     {items.map((p, i) => <li key={p.i}>
                         <span className="kh-ft-n">{(i + 1).toLocaleString('en-US')}</span>
-                        <img className="kh-ft-img" src={photoFor(p.c, p.i)} alt="" loading="lazy" />
+                        <span className="kh-ft-img"><ProdImg c={p.c} i={p.i} loading="lazy" /></span>
                         <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(p.p)} ج.م</small></span>
                         <span className="kh-ft-ctl">
                             <button type="button" className="kh-ft-btn" aria-label="فوق" disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
@@ -446,6 +446,98 @@ function AdminFeatured() {
                         </span>
                     </li>)}
                 </ol>}
+        </section>
+    </>;
+}
+
+async function resizeToWebp(file: File): Promise<string> {
+    const url = URL.createObjectURL(file);
+    try {
+        const img = await new Promise<HTMLImageElement>((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('bad image')); im.src = url; });
+        const max = 480;
+        const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        if (!ctx) throw new Error('no canvas');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        for (const [type, q] of [['image/webp', 0.78], ['image/webp', 0.6], ['image/jpeg', 0.7], ['image/jpeg', 0.5]] as const) {
+            const d = cv.toDataURL(type, q);
+            if (d.startsWith(`data:${type}`) && d.length < 140000) return d;
+        }
+        throw new Error('too big');
+    } finally { URL.revokeObjectURL(url); }
+}
+
+function PhotoBtn({ id }: { id: string }) {
+    const [key] = useAdminKey();
+    const [st, setSt] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
+    const [msg, setMsg] = useState('');
+    useSyncPhotos();
+    const has = PHOTO_IDS.has(id);
+    const save = async (data: string) => {
+        setSt('busy');
+        try {
+            await adminCall(key, 'photo-set', { id, data });
+            if (data) { PHOTOS.set(id, data); PHOTO_IDS.add(id); } else { PHOTOS.delete(id); PHOTO_IDS.delete(id); }
+            try { localStorage.setItem('kh_photo_ids', JSON.stringify([...PHOTO_IDS])); } catch { /* ignore */ }
+            photoNotify(); setSt('ok'); setMsg(data ? 'تم حفظ الصورة' : 'تم مسح الصورة');
+        } catch (e) { setSt('err'); setMsg((e as Error).message === 'unauthorized' ? 'مفتاح الأدمن غير صحيح' : 'تعذر الحفظ'); }
+    };
+    return <div className="kh-pb">
+        <label className="kh-pb-up">
+            <input type="file" accept="image/*" hidden onChange={async (e) => {
+                const f = e.target.files?.[0]; e.target.value = '';
+                if (!f) return;
+                try { await save(await resizeToWebp(f)); } catch { setSt('err'); setMsg('الصورة مش مقروءة'); }
+            }} />
+            {st === 'busy' ? 'جاري الرفع…' : has ? 'تغيير الصورة' : 'التقاط / رفع صورة'}
+        </label>
+        {has && <button type="button" className="kh-pb-del" onClick={() => void save('')}>مسح</button>}
+        {msg !== '' && st !== 'busy' && <span className={`kh-pb-msg${st === 'err' ? ' is-err' : ''}`}>{msg}</span>}
+    </div>;
+}
+
+function useSyncPhotos() { React.useSyncExternalStore(photoSub, photoSnap); }
+
+function AdminPhotos() {
+    useSyncPhotos();
+    const [text, setText] = useState('');
+    const res = text.trim() === '' ? [] : searchProducts(text, 8);
+    const mine = [...PHOTO_IDS].map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p);
+    return <>
+        <AdminTabs active="photos" />
+        <section className="kh-ftp">
+            <header className="kh-ftp-head">
+                <span className="kh-ftp-ico"><Icon name="camera" size={22} /></span>
+                <div>
+                    <h2>صور المنتجات</h2>
+                    <p>اختار المنتج وصوّر العلبة بالموبايل. الصورة بتتصغّر لوحدها وتظهر للعملاء على طول.</p>
+                </div>
+            </header>
+            <div className="kh-ftp-card">
+                <label className="kh-ftp-search">
+                    <Icon name="search" size={18} />
+                    <input type="search" name="kh_photo_x5" autoComplete="off" readOnly onFocus={(e) => { e.currentTarget.readOnly = false; }} spellCheck={false} inputMode="search" value={text} onChange={(e) => setText(/^\+?\d{10,13}$/.test(e.target.value.trim()) ? '' : e.target.value)} placeholder="ابحث عن منتج..." aria-label="ابحث عن منتج" />
+                </label>
+                {res.length > 0 && <ul className="kh-ft-res">
+                    {res.map((p) => <li key={p.i} className="kh-ph-li">
+                        <span className="kh-ft-img"><ProdImg c={p.c} i={p.i} /></span>
+                        <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]}</small></span>
+                        <PhotoBtn id={p.i} />
+                    </li>)}
+                </ul>}
+            </div>
+            <div className="kh-ftp-sub"><strong>الصور المرفوعة <b>{mine.length.toLocaleString('en-US')}</b></strong></div>
+            {mine.length === 0
+                ? <div className="kh-ftp-empty"><Icon name="camera" size={28} /><span>لسه مفيش صور. ابحث عن منتج وارفع صورته.</span></div>
+                : <ul className="kh-ft-list kh-ph-list">{mine.map((p) => <li key={p.i}>
+                    <span className="kh-ft-img"><ProdImg c={p.c} i={p.i} /></span>
+                    <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]}</small></span>
+                    <PhotoBtn id={p.i} />
+                </li>)}</ul>}
         </section>
     </>;
 }
@@ -548,6 +640,49 @@ function AddButton({ id }: { id: string }) {
 }
 
 const CAT_PHOTOS: string[][] = [[c0_1, c0_2], [c1_1, c1_2, c1_3], [c2_1, c2_2, c2_3], [c3_1, c3_2], [c4_1, c4_2]];
+// ===== Owner-uploaded product photos (small WebP, loaded lazily per visible product) =====
+const PHOTOS = new Map<string, string>();
+let PHOTO_IDS = new Set<string>();
+try { PHOTO_IDS = new Set(JSON.parse(localStorage.getItem('kh_photo_ids') ?? '[]') as string[]); } catch { /* ignore */ }
+let photoVer = 0;
+const photoSubs = new Set<() => void>();
+const photoNotify = () => { photoVer++; photoSubs.forEach((f) => f()); };
+const photoSub = (f: () => void) => { photoSubs.add(f); return () => { photoSubs.delete(f); }; };
+const photoSnap = () => photoVer;
+const photoWanted = new Set<string>();
+let photoTimer: number | undefined;
+function requestPhoto(id: string) {
+    if (PHOTOS.has(id) || photoWanted.has(id)) return;
+    photoWanted.add(id);
+    window.clearTimeout(photoTimer);
+    photoTimer = window.setTimeout(async () => {
+        const ids = [...photoWanted].slice(0, 30);
+        ids.forEach((x) => photoWanted.delete(x));
+        const got = await getPhotos(ids);
+        if (got) { Object.entries(got).forEach(([k, v]) => PHOTOS.set(k, v)); photoNotify(); }
+        if (photoWanted.size > 0) { const rest = [...photoWanted]; photoWanted.clear(); rest.forEach(requestPhoto); }
+    }, 60);
+}
+function refreshPhotoIds() {
+    getPhotoIds().then((ids) => {
+        if (!ids) return;
+        PHOTO_IDS = new Set(ids);
+        try { localStorage.setItem('kh_photo_ids', JSON.stringify(ids)); } catch { /* ignore */ }
+        [...PHOTOS.keys()].forEach((k) => { if (!PHOTO_IDS.has(k)) PHOTOS.delete(k); });
+        photoNotify();
+    }).catch(() => {});
+}
+function usePhotoSrc(c: number, id: string): string {
+    React.useSyncExternalStore(photoSub, photoSnap);
+    const has = PHOTO_IDS.has(id);
+    const data = PHOTOS.get(id);
+    if (has && !data) requestPhoto(id);
+    return data ?? photoFor(c, id);
+}
+function ProdImg({ c, i, alt = '', loading }: { c: number; i: string; alt?: string; loading?: 'lazy' | 'eager' }) {
+    return <img src={usePhotoSrc(c, i)} alt={alt} loading={loading} />;
+}
+
 function photoFor(c: number, id: string): string {
     const list = CAT_PHOTOS[c] ?? CAT_PHOTOS[0];
     return list[hashId(id) % list.length];
@@ -565,7 +700,7 @@ function ProductCard({ p }: { p: CatalogItem }) {
     const feat = FEAT_SET.s.has(p.i);
     return <div className={`kh-card${feat ? ' is-feat' : ''}`}>
         <button type="button" className="kh-card-photo kh-card-tile" onClick={() => setSelectedId(p.i)} aria-label={p.n}>
-            <img className={ok ? 'is-ok' : ''} src={photoFor(p.c, p.i)} alt="" loading="lazy" onLoad={() => setOk(true)} ref={(el) => { if (el && el.complete && !ok) setOk(true); }} />
+            <img className={ok ? 'is-ok' : ''} src={usePhotoSrc(p.c, p.i)} alt="" loading="lazy" onLoad={() => setOk(true)} ref={(el) => { if (el && el.complete && !ok) setOk(true); }} />
             {feat && <span className="kh-badge-feat"><Icon name="star" size={12} /> مختار</span>}
             <span className="kh-badge-free"><Icon name="truck" size={12} /> مجاني</span>
         </button>
@@ -835,7 +970,7 @@ function OrdersPage() {
                         <div className="kh-order-items">{o.items.map((i, k) => {
                             const p = i.id ? BY_ID.get(i.id) : [...BY_ID.values()].find((q) => q.n === i.name);
                             return <div className="kh-oi" key={k}>
-                                <span className="kh-oi-img">{p ? <img src={photoFor(p.c, p.i)} alt="" loading="lazy" /> : <Icon name="pill" size={28} />}</span>
+                                <span className="kh-oi-img">{p ? <ProdImg c={p.c} i={p.i} loading="lazy" /> : <Icon name="pill" size={28} />}</span>
                                 <span className="kh-oi-name">{i.name}</span>
                                 <span className="kh-oi-qty">×{i.qty.toLocaleString('en-US')}</span>
                             </div>;
@@ -982,6 +1117,7 @@ function ProductPage({ id }: { id: string }) {
     const cart = useCart();
     const { setSelectedId } = useShop();
     const product = BY_ID.get(id);
+    const [adminKeyPdp] = useAdminKey();
     const [qty, setQty] = useState(1);
     const [pdpAdded, setPdpAdded] = useState(false);
     const pdpTimer = useRef<number | undefined>(undefined);
@@ -1000,8 +1136,9 @@ function ProductPage({ id }: { id: string }) {
         <ScrollTop key={id} />
         <div className="kh-pdp-stage">
             <span className="kh-pdp-badge">{CAT_NAMES[product.c]}</span>
-            <div className="kh-pdp-photo"><img src={photoFor(product.c, product.i)} alt={product.n} /></div>
+            <div className="kh-pdp-photo"><ProdImg c={product.c} i={product.i} alt={product.n} /></div>
         </div>
+        {adminKeyPdp !== '' && <PhotoBtn id={product.i} />}
         <p className="kh-detail-name">{product.n}</p>
         <div className="kh-pdp-rate">
             <Stars value={avg} />
@@ -1286,7 +1423,7 @@ function CartPage() {
         <div className="kh-pg-head"><p className="kh-section">سلة المشتريات</p><span className="kh-count">{cart.count.toLocaleString('en-US')} منتج</span></div>
         <div className="kh-cart">
             {items.map(({ product, qty }) => <div className="kh-cart-row" key={product.i}>
-                <span className="kh-cart-ph"><img src={photoFor(product.c, product.i)} alt="" loading="lazy" /></span>
+                <span className="kh-cart-ph"><ProdImg c={product.c} i={product.i} loading="lazy" /></span>
                 <div className="kh-cart-info">
                     <span className="kh-card-name">{product.n}</span>
                     <span className="kh-card-price">{egp(product.p * qty)}</span>
@@ -1457,6 +1594,7 @@ function AdminTabs({ active }: { active: string }) {
         { to: '/admin/orders', label: 'الأوردرات', key: 'orders' },
         { to: '/admin/products', label: 'المنتجات', key: 'products' },
         { to: '/admin/featured', label: 'المميزة', key: 'featured' },
+        { to: '/admin/photos', label: 'الصور', key: 'photos' },
         { to: '/admin/rx', label: 'الروشتات', key: 'rx' },
         { to: '/admin/notify', label: 'الإشعارات', key: 'notify' },
         { to: '/admin/loyalty', label: 'نقاط الولاء', key: 'loyalty' },
@@ -1598,7 +1736,7 @@ function AdminOrderDetail() {
             {order.items.map((it) => {
                 const p = BY_ID.get(it.id);
                 return <div className="kh-cart-row" key={it.id}>
-                    <span className="kh-aph">{p ? <img src={photoFor(p.c, p.i)} alt="" /> : null}</span>
+                    <span className="kh-aph">{p ? <ProdImg c={p.c} i={p.i} /> : null}</span>
                     <div className="kh-cart-info">
                         <span className="kh-card-name">{it.name}</span>
                         <span className="kh-card-unit">الكمية: {it.qty.toLocaleString('en-US')}</span>
@@ -1787,6 +1925,7 @@ function writeSession(p: string | null) {
 export function App() {
     const { pathname } = useLocation();
     const [, setPriceTick] = useState(0);
+    React.useEffect(() => { refreshPhotoIds(); const t = window.setInterval(refreshPhotoIds, 300000); return () => window.clearInterval(t); }, []);
     React.useEffect(() => {
         const run = () => { loadPriceOverrides().then((l) => { if (applyOverrides(l)) setPriceTick((t) => t + 1); }).catch(() => {}); };
         run();
@@ -1911,6 +2050,7 @@ export function App() {
                         <Route path="/admin/rx" element={<AdminGate><AdminRx /></AdminGate>} />
                         <Route path="/admin/loyalty" element={<AdminGate><AdminLoyalty /></AdminGate>} />
                         <Route path="/admin/featured" element={<AdminGate><AdminFeatured /></AdminGate>} />
+                        <Route path="/admin/photos" element={<AdminGate><AdminPhotos /></AdminGate>} />
                         <Route path="/admin/notify" element={<AdminGate><AdminNotify /></AdminGate>} />
                         <Route path="/notifications" element={<NotificationsPage />} />
                     </Routes>}

@@ -161,6 +161,11 @@ export async function adminCall<T = unknown>(key: string, action: string, payloa
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
         return r.data as T;
     }
+    if (action === 'photo-set') {
+        const r = await supabase.rpc('admin_photo_set', { p_key: key, p_id: String(payload.id), p_data: String(payload.data ?? '') });
+        if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
+        return r.data as T;
+    }
     if (action === 'announce-set') {
         const r = await supabase.rpc('admin_announce_set', { p_key: key, p_text: String(payload.text ?? '') });
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
@@ -264,4 +269,18 @@ export async function getFeatured(): Promise<string[] | null> {
     const { data, error } = await supabase.rpc('featured_get');
     if (error) return null;
     return typeof data === 'string' ? data.split(',').map((s) => s.trim()).filter(Boolean) : [];
+}
+
+export async function getPhotoIds(): Promise<string[] | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc('photo_ids');
+    if (error) return null;
+    return typeof data === 'string' ? data.split(',').filter(Boolean) : [];
+}
+
+export async function getPhotos(ids: string[]): Promise<Record<string, string> | null> {
+    if (!supabase || ids.length === 0) return null;
+    const { data, error } = await supabase.rpc('photos_get', { p_ids: ids.join(',') });
+    if (error || !data) return null;
+    return data as Record<string, string>;
 }

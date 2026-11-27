@@ -1820,3 +1820,13 @@ body { background: #f4f9f7; -webkit-tap-highlight-color: transparent; letter-spa
 .kh-order-bot b { font-size: 17px; color: var(--kh-green-dark); }
 .kh-oi-img { border-radius: 12px !important; }
 .kh-driver { border-radius: 14px !important; background: linear-gradient(135deg, #eef8f3, #dff1e8) !important; }
+.kh-ft-img { flex: none; width: 48px; height: 48px; border-radius: 10px; overflow: hidden; background: var(--kh-mint); display: block; }
+.kh-ft-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kh-pb { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.kh-pb-up, .kh-pb-del { border: 0; font: inherit; font-size: 12.5px; font-weight: 800; padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.kh-pb-up { background: linear-gradient(135deg, #0a6b52, #05483c); color: #fff; }
+.kh-pb-del { background: #fdecec; color: #b3261e; }
+.kh-pb-msg { font-size: 12px; font-weight: 700; color: #0a6b52; }
+.kh-pb-msg.is-err { color: #b3261e; }
+.kh-ph-li, .kh-ph-list li { flex-wrap: wrap; }
+.kh-ph-li .kh-pb, .kh-ph-list .kh-pb { margin-inline-start: auto; }
