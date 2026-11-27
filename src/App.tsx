@@ -1363,8 +1363,8 @@ function AdminTabs({ active }: { active: string }) {
         { to: '/admin', label: 'لوحة التحكم', key: 'home' },
         { to: '/admin/orders', label: 'الأوردرات', key: 'orders' },
         { to: '/admin/products', label: 'المنتجات', key: 'products' },
-        { to: '/admin/rx', label: 'الروشتات', key: 'rx' },
         { to: '/admin/featured', label: 'المميزة', key: 'featured' },
+        { to: '/admin/rx', label: 'الروشتات', key: 'rx' },
         { to: '/admin/notify', label: 'الإشعارات', key: 'notify' },
         { to: '/admin/loyalty', label: 'نقاط الولاء', key: 'loyalty' },
     ];
