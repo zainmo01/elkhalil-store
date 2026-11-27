@@ -29,12 +29,11 @@ import c4_2 from './photos/cat/c4_2.webp';
 
 // ===== REAL CATALOG (loaded from the pharmacy's item file) =====
 // catalog.ts holds customer-safe fields only: id, name, sell price, category.
-import { CATALOG } from './catalog';
+import { CATALOG, BY_ID } from './catalog';
 import type { CatalogItem } from './catalog';
 
 const CAT_NAMES = ['الأدوية', 'العناية', 'الفيتامينات', 'الأم والطفل', 'أجهزة طبية'];
 const CATEGORIES = ['الكل', ...CAT_NAMES];
-const BY_ID = new Map<string, CatalogItem>(CATALOG.map((x) => [x.i, x]));
 
 function fmtPrice(value: number) {
     return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -814,7 +813,7 @@ function OrdersPage() {
     const orders: ShownOrder[] = [...(remote ?? []), ...local.filter((o) => !ids.has(o.id))];
     return <div className="kh-catpage">
         <ScrollTop />
-        <p className="kh-section">طلباتي</p>
+        <div className="kh-pg-head"><p className="kh-section">طلباتي</p>{orders.length > 0 && <span className="kh-count">{orders.length.toLocaleString('en-US')} طلب</span>}</div>
         {orders.length === 0
             ? <div className="kh-empty">
                 <Icon name="receipt" size={44} />
@@ -825,7 +824,7 @@ function OrdersPage() {
                 {orders.map((o) => {
                     const idx = o.status ? CUSTOMER_STEPS.findIndex((x) => x.s === o.status) : -1;
                     return <div key={o.id} className="kh-order">
-                        <div className="kh-order-top"><strong>{o.id}</strong><span>{fmtTime(o.at)}</span></div>
+                        <div className="kh-order-top"><div className="kh-order-id"><strong>{o.id}</strong><span>{fmtTime(o.at)}</span></div>{idx >= 0 && <em className={`kh-pill kh-pill-${o.status}`}>{CUSTOMER_STEPS[idx].label}</em>}</div>
                         {idx >= 0 && <div className="kh-track">
                             {CUSTOMER_STEPS.map((st, k) => <div key={st.s} className={`kh-track-step${k < idx ? ' is-past' : ''}${k === idx ? ' is-now' : ''}`}><i>{k <= idx ? '✓' : ''}</i><span>{st.label}</span></div>)}
                         </div>}
@@ -998,7 +997,7 @@ function ProductPage({ id }: { id: string }) {
     const avg = reviews.reduce((a, r) => a + r.stars, 0) / reviews.length;
     const dist = [5, 4, 3, 2, 1].map((n) => ({ n, c: reviews.filter((r) => r.stars === n).length }));
     return <div className="kh-detail">
-        <ScrollTop />
+        <ScrollTop key={id} />
         <div className="kh-pdp-stage">
             <span className="kh-pdp-badge">{CAT_NAMES[product.c]}</span>
             <div className="kh-pdp-photo"><img src={photoFor(product.c, product.i)} alt={product.n} /></div>
@@ -1010,6 +1009,11 @@ function ProductPage({ id }: { id: string }) {
             <span>({reviews.length.toLocaleString('en-US')} تقييمات)</span>
         </div>
         <p className="kh-detail-price">{egp(product.p)}</p>
+        <div className="kh-pdp-perks">
+            <span><Icon name="truck" size={16} /> توصيل مجاني</span>
+            <span><Icon name="shield" size={16} /> متاح للطلب</span>
+            <span><Icon name="star" size={16} /> نقاط ولاء</span>
+        </div>
         <div className="kh-qty-row">
             <div className="kh-qty" dir="ltr">
                 <button type="button" aria-label="زود الكمية" onClick={() => setQty((q) => q + 1)}>+</button>
@@ -1245,7 +1249,7 @@ function CartPage() {
     const cart = useCart();
     const userPhone = useUserPhone();
     const items = cart.items();
-    const [name, setName] = useState('');
+    const [name, setName] = useState(() => { try { return localStorage.getItem(nameKey(userPhone)) || ''; } catch { return ''; } });
     const [phone, setPhone] = useState(userPhone);
     const [address, setAddress] = useState('');
     const [pay, setPay] = useState('cod');
@@ -1279,10 +1283,10 @@ function CartPage() {
     const ready = name.trim() !== '' && phone.trim() !== '' && address.trim() !== '';
     return <>
         <ScrollTop />
-        <p className="kh-section">سلة المشتريات</p>
+        <div className="kh-pg-head"><p className="kh-section">سلة المشتريات</p><span className="kh-count">{cart.count.toLocaleString('en-US')} منتج</span></div>
         <div className="kh-cart">
             {items.map(({ product, qty }) => <div className="kh-cart-row" key={product.i}>
-                <span className="kh-line-photo kh-line-tile"><CatTile c={product.c} size={26} /></span>
+                <span className="kh-cart-ph"><img src={photoFor(product.c, product.i)} alt="" loading="lazy" /></span>
                 <div className="kh-cart-info">
                     <span className="kh-card-name">{product.n}</span>
                     <span className="kh-card-price">{egp(product.p * qty)}</span>
@@ -1304,7 +1308,9 @@ function CartPage() {
             <input type="checkbox" checked={usePts} onChange={(e) => setUsePts(e.target.checked)} />
             <span>استخدم نقاطي: عندك {loy.info.balance.toLocaleString('en-US')} نقطة = {egp(loy.info.balance * pv)}</span>
         </label>}
-        <p className="kh-section">بيانات التوصيل</p>
+        <div className="kh-free-note"><Icon name="truck" size={18} /> التوصيل مجاني على طلبك، وبيوصلك خلال 24 ساعة</div>
+        <div className="kh-pg-head"><p className="kh-section">بيانات التوصيل</p></div>
+        <div className="kh-formcard">
         <label className="kh-field">
             <span>الاسم</span>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="اكتب اسمك" autoComplete="name" />
@@ -1317,8 +1323,9 @@ function CartPage() {
             <span>العنوان بالتفصيل</span>
             <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="الشارع والمنطقة" autoComplete="street-address" />
         </label>
-        <p className="kh-section">طريقة الدفع</p>
-        <div className="kh-chips">
+        </div>
+        <div className="kh-pg-head"><p className="kh-section">طريقة الدفع</p></div>
+        <div className="kh-chips kh-paygrid">
             <button type="button" className={`kh-chip kh-pay${pay === 'cod' ? ' is-active' : ''}`} onClick={() => setPay('cod')}>الدفع عند الاستلام</button>
             <button type="button" className={`kh-chip kh-pay${pay === 'wallet' ? ' is-active' : ''}`} onClick={() => setPay('wallet')}>محفظة إلكترونية</button>
         </div>

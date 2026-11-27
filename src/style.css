@@ -1765,3 +1765,58 @@ body { background: #f4f9f7; -webkit-tap-highlight-color: transparent; letter-spa
 .kh-card { content-visibility: auto; contain-intrinsic-size: 300px 330px; }
 .kh-card:not(:nth-child(-n+8)) { animation: none; }
 .kh-slide-bg { transition: transform 7s linear; will-change: transform; }
+
+/* ===== Polish pass 3: product page, cart, orders ===== */
+.kh-pg-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 10px; }
+.kh-pg-head .kh-section { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.kh-pg-head .kh-section::before { content: ''; width: 5px; height: 20px; border-radius: 3px; background: linear-gradient(#e8c65a, #c9a227); }
+.kh-pg-head .kh-count { font-size: 12px; font-weight: 700; color: var(--kh-green-dark); background: var(--kh-mint); padding: 4px 10px; border-radius: 999px; }
+/* product page */
+.kh-pdp-stage { border-radius: 24px; border: 0; background: radial-gradient(circle at 20% 15%, rgba(255,255,255,.9), transparent 55%), linear-gradient(160deg, #eaf5f0, #d3e8de); padding: 22px 0; box-shadow: 0 10px 28px rgba(6,42,38,.1); }
+.kh-pdp-photo { width: min(78%, 300px) !important; height: auto !important; aspect-ratio: 1; border-radius: 20px !important; box-shadow: 0 16px 34px rgba(6,42,38,.25) !important; border: 4px solid #fff; }
+.kh-pdp-badge { background: linear-gradient(135deg, #0a6b52, #05483c) !important; border-radius: 999px !important; padding: 5px 12px !important; }
+.kh-detail .kh-detail-name { font-size: 20px; line-height: 1.5; margin-top: 18px; }
+.kh-detail .kh-detail-price { font-size: 28px; font-weight: 800; color: var(--kh-green-dark); letter-spacing: -.5px; }
+.kh-pdp-perks { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.kh-pdp-perks span { display: inline-flex; align-items: center; gap: 5px; background: var(--kh-mint); color: var(--kh-green-dark); font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 999px; }
+.kh-qty-row { position: sticky; bottom: 76px; z-index: 6; background: rgba(255,255,255,.97); border: 1px solid #e3efe9; border-radius: 18px; padding: 10px; box-shadow: 0 -4px 22px rgba(6,42,38,.14); }
+.kh-detail .kh-qty-row .kh-confirm { border-radius: 14px; background: linear-gradient(135deg, #0a6b52, #05483c); font-weight: 800; }
+.kh-detail .kh-qty-row .kh-confirm.is-added { background: linear-gradient(135deg, #c9a227, #a8841a); }
+.kh-pdp-h { border-top: 0 !important; padding-top: 0 !important; margin: 26px 0 10px !important; font-size: 18px !important; display: flex; align-items: center; gap: 8px; }
+.kh-pdp-h::before { content: ''; width: 5px; height: 20px; border-radius: 3px; background: linear-gradient(#e8c65a, #c9a227); }
+.kh-pdp-specs { border-radius: 16px !important; background: #fff; box-shadow: 0 4px 14px rgba(6,42,38,.06); border-color: #e3efe9 !important; }
+.kh-pdp-note { background: var(--kh-mint); border-radius: 14px; padding: 12px 14px; }
+.kh-rv-sum { border-radius: 16px !important; background: #fff !important; box-shadow: 0 4px 14px rgba(6,42,38,.06); border-color: #e3efe9 !important; }
+.kh-rv { border-radius: 14px !important; background: #fff; border-color: #e3efe9 !important; }
+.kh-rv-av { background: linear-gradient(135deg, #0a6b52, #05483c) !important; }
+/* cart */
+.kh-cart { gap: 10px; display: flex; flex-direction: column; background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+.kh-cart-row { background: #fff; border: 1px solid #e3efe9; border-radius: 16px; padding: 10px; box-shadow: 0 4px 14px rgba(6,42,38,.06); }
+.kh-cart-ph { flex: none; width: 66px; height: 66px; border-radius: 12px; overflow: hidden; background: var(--kh-mint); }
+.kh-cart-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kh-cart-row .kh-card-price { font-size: 16px; }
+.kh-qty { border-radius: 999px !important; background: var(--kh-mint); }
+.kh-totals { background: #fff; border: 1px solid #e3efe9; border-radius: 16px; padding: 14px; box-shadow: 0 4px 14px rgba(6,42,38,.06); margin-top: 12px; }
+.kh-totals .kh-total { font-size: 18px; color: var(--kh-green-dark); }
+.kh-free-note { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 11px 14px; border-radius: 14px; background: linear-gradient(135deg, #fff7dc, #fdeeb3); color: #6b5200; font-size: 13px; font-weight: 700; }
+.kh-formcard { background: #fff; border: 1px solid #e3efe9; border-radius: 16px; padding: 14px; box-shadow: 0 4px 14px rgba(6,42,38,.06); display: flex; flex-direction: column; gap: 12px; }
+.kh-field input { border-radius: 12px !important; padding: 13px 12px !important; border: 1.5px solid #d4e6de !important; background: #fbfdfc; }
+.kh-field input:focus { border-color: #0a6b52 !important; box-shadow: 0 0 0 3px rgba(10,107,82,.15); outline: 0; }
+.kh-main .kh-paygrid { display: grid; grid-template-columns: 1fr 1fr; overflow: visible; margin-inline: 0; padding-inline: 0; }
+.kh-main .kh-paygrid .kh-chip { border-radius: 16px; padding: 16px 8px; white-space: normal; text-align: center; line-height: 1.4; border: 1.5px solid #d4e6de; }
+.kh-main .kh-paygrid .kh-chip.is-active { border-color: #0a6b52; background: var(--kh-mint); color: var(--kh-green-dark); box-shadow: 0 0 0 3px rgba(10,107,82,.12); }
+.kh-confirm-big { border-radius: 16px !important; padding: 16px !important; background: linear-gradient(135deg, #0a6b52, #05483c); box-shadow: 0 8px 20px rgba(5,72,60,.3); font-weight: 800; }
+/* orders */
+.kh-order { background: #fff; border: 1px solid #e3efe9; border-radius: 18px; padding: 14px; box-shadow: 0 4px 14px rgba(6,42,38,.06); }
+.kh-order-id { display: flex; flex-direction: column; gap: 2px; }
+.kh-order-id strong { font-size: 16px; color: var(--kh-green-dark); }
+.kh-pill { font-style: normal; font-size: 12px; font-weight: 800; padding: 5px 12px; border-radius: 999px; background: #e3f0ea; color: #05483c; }
+.kh-pill-new { background: #fff1cf; color: #8a6200; }
+.kh-pill-out { background: #dbeafe; color: #1d4ed8; }
+.kh-pill-delivered, .kh-pill-done { background: #d5f1e0; color: #0a6b3a; }
+.kh-track { margin: 16px 0 12px; }
+.kh-track-step.is-now i { box-shadow: 0 0 0 5px rgba(10,107,82,.18); }
+.kh-order-bot { border-top: 1px dashed #d4e6de; padding-top: 10px; margin-top: 4px; }
+.kh-order-bot b { font-size: 17px; color: var(--kh-green-dark); }
+.kh-oi-img { border-radius: 12px !important; }
+.kh-driver { border-radius: 14px !important; background: linear-gradient(135deg, #eef8f3, #dff1e8) !important; }
