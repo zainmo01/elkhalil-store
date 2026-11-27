@@ -1,5 +1,5 @@
 // El-Khalil store service worker: offline shell + fast repeat visits.
-const CACHE = 'elkhalil-v3';
+const CACHE = 'elkhalil-v4';
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -23,14 +23,18 @@ self.addEventListener('fetch', (event) => {
 
     // Network-first for pages, cache-first for assets.
     if (event.request.mode === 'navigate') {
+        // Stale-while-revalidate: open instantly from cache, refresh in the background.
+        // main.tsx reloads once if the refreshed index.html points to a newer bundle.
         event.respondWith(
-            fetch(event.request, { cache: 'no-cache' })
-                .then((res) => {
+            caches.match('./index.html').then((hit) => {
+                const net = fetch(event.request, { cache: 'no-cache' }).then((res) => {
                     const copy = res.clone();
                     caches.open(CACHE).then((cache) => cache.put('./index.html', copy));
                     return res;
-                })
-                .catch(() => caches.match('./index.html'))
+                });
+                if (hit) { net.catch(() => {}); return hit; }
+                return net.catch(() => caches.match('./index.html'));
+            })
         );
         return;
     }
