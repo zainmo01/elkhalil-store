@@ -1851,3 +1851,13 @@ a, button { touch-action: manipulation; }
     .kh-icon-btn { color: #fff; }
     .kh-icon-btn:hover { background: rgba(255,255,255,.12); }
 }
+
+.kh-order-ok .kh-ok-pts { display: inline-flex; align-items: center; gap: 6px; margin: 6px 0 2px; padding: 8px 16px; border-radius: 999px; background: #fbf4dc; color: #8a6d0c; font-weight: 700; }
+.kh-order-ok .kh-ok-pts b { font-size: 18px; }
+.kh-congrats { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; padding: 14px 14px; border-radius: 18px; background: linear-gradient(135deg, #0a6b52, #05483c); color: #fff; box-shadow: 0 2px 8px rgba(5,72,60,.25); animation: khUp .4s ease both; }
+.kh-congrats-ico { flex: none; width: 46px; height: 46px; border-radius: 14px; background: #e8c65a; color: #05483c; display: grid; place-items: center; }
+.kh-congrats-txt { flex: 1; display: flex; flex-direction: column; gap: 2px; line-height: 1.5; }
+.kh-congrats-txt strong { font-size: 16px; font-weight: 800; }
+.kh-congrats-txt span { font-size: 13.5px; color: rgba(255,255,255,.9); }
+.kh-congrats-txt b { color: #e8c65a; font-size: 16px; }
+.kh-congrats-x { flex: none; border: 0; background: rgba(255,255,255,.14); color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer; }

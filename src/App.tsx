@@ -805,6 +805,23 @@ function CategoryRow() {
     </div>;
 }
 
+function CongratsBanner() {
+    const ph = useUserPhone();
+    const [d, setD] = useState<{ oid: string; pts: number } | null>(() => { try { return JSON.parse(sessionStorage.getItem('kh_congrats') || 'null'); } catch { return null; } });
+    const [n, setN] = useState('');
+    React.useEffect(() => { try { setN((ph && localStorage.getItem(nameKey(ph))) || ''); } catch { setN(''); } }, [ph]);
+    if (!d) return null;
+    const close = () => { try { sessionStorage.removeItem('kh_congrats'); } catch { /* ignore */ } setD(null); };
+    return <section className="kh-congrats" role="status">
+        <span className="kh-congrats-ico"><Icon name="star" size={26} /></span>
+        <div className="kh-congrats-txt">
+            <strong>مبروك{n ? ` يا ${n}` : ''}! طلبك وصلنا</strong>
+            <span>{d.pts > 0 ? <>كسبت <b>{d.pts.toLocaleString('en-US')}</b> نقطة، هتتضاف لرصيدك أول ما الطلب يتسلم.</> : <>طلبك رقم <bdi>{d.oid}</bdi> اتسجل وهنتواصل معاك قريب.</>}</span>
+        </div>
+        <button type="button" className="kh-congrats-x" onClick={close} aria-label="إغلاق">×</button>
+    </section>;
+}
+
 function Greeting() {
     const ph = useUserPhone();
     const [n, setN] = useState('');
@@ -887,6 +904,7 @@ function Shop() {
     return <>
         <ScrollTop />
         <Greeting />
+        <CongratsBanner />
         <HeroCarousel />
         <TrustStrip />
         <CategoryRow />
@@ -1404,17 +1422,22 @@ function CartPage() {
     const [address, setAddress] = useState('');
     const [pay, setPay] = useState('cod');
     const [orderId, setOrderId] = useState<string | null>(null);
+    const [earnedPts, setEarnedPts] = useState(0);
+    const navAfter = useNavigate();
+    React.useEffect(() => { if (!orderId) return; const t = window.setTimeout(() => navAfter('/'), 4500); return () => window.clearTimeout(t); }, [orderId]);
     const [placing, setPlacing] = useState(false);
     const [orderErr, setOrderErr] = useState('');
     const loy = React.useContext(LoyaltyContext);
     const [usePts, setUsePts] = useState(false);
 
     if (orderId) {
-        return <div className="kh-success">
+        return <div className="kh-success kh-order-ok">
             <div className="kh-success-check">✓</div>
-            <p className="kh-success-title">تم استلام طلبك!</p>
-            <Paragraph>شكراً يا {name || 'عميلنا'}، طلبك رقم <bdi>{orderId}</bdi> اتسجل وهنتواصل معاك على <bdi dir="ltr">{phone}</bdi> لتأكيد التوصيل.</Paragraph>
-            <Link className="kh-biglink" to="/">كمل تسوق</Link>
+            <p className="kh-success-title">أهلاً بيك يا {name || 'عميلنا'}، تم استلام طلبك!</p>
+            <Paragraph>طلبك رقم <bdi>{orderId}</bdi> اتسجل وهنتواصل معاك على <bdi dir="ltr">{phone}</bdi> لتأكيد التوصيل.</Paragraph>
+            {earnedPts > 0 && <p className="kh-ok-pts"><Icon name="star" size={18} /> هتكسب <b>{earnedPts.toLocaleString('en-US')}</b> نقطة أول ما طلبك يتسلم</p>}
+            <Caption>هنرجعك للرئيسية خلال ثواني…</Caption>
+            <Link className="kh-biglink" to="/">الرئيسية دلوقتي</Link>
         </div>;
     }
     if (items.length === 0) {
@@ -1502,6 +1525,9 @@ function CartPage() {
                     id = await placeOrder(payload);
                 }
                 const oid = id !== null ? `EK-${id}` : `EK-${Math.floor(1000 + Math.random() * 9000)}`;
+                const pts = userPhone !== '' && userPhone !== ADMIN_PHONE && loy.info && loy.info.earn_per > 0 ? Math.floor(payload.total / loy.info.earn_per) : 0;
+                setEarnedPts(pts);
+                try { sessionStorage.setItem('kh_congrats', JSON.stringify({ oid, pts })); } catch { /* ignore */ }
                 setOrderId(oid);
                 try {
                     const prev = loadOrders();
