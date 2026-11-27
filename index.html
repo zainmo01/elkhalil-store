@@ -23,7 +23,7 @@
         #kh-welcome{position:fixed;inset:0;z-index:99999;direction:rtl;font-family:Tajawal,system-ui,sans-serif;color:#fff;background:radial-gradient(120% 70% at 50% 0%,#1c78dc 0%,#0b3c73 55%,#082c57 100%);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:max(28px,env(safe-area-inset-top)) 26px max(28px,env(safe-area-inset-bottom));text-align:center;transition:opacity .35s ease,transform .35s ease;overflow:hidden}
         #kh-welcome.kh-w-out{opacity:0;transform:scale(1.03);pointer-events:none}
         #kh-welcome .kh-w-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;max-width:420px;width:100%}
-        #kh-welcome .kh-w-logo{width:150px;height:150px;border-radius:30px;background:#fff;padding:8px;object-fit:contain;box-shadow:0 14px 40px rgba(0,0,0,.3);animation:khw-pop .7s cubic-bezier(.2,.9,.3,1.2) both}
+        #kh-welcome .kh-w-logo{width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 12px 28px rgba(0,0,0,.35));animation:khw-pop .7s cubic-bezier(.2,.9,.3,1.2) both}
         #kh-welcome h1{margin:10px 0 0;font-size:34px;font-weight:800;line-height:1.2}
         #kh-welcome h1 b{color:#4fb3f0}
         #kh-welcome p{margin:0;font-size:17px;line-height:1.7;color:rgba(255,255,255,.88);animation:khw-up .6s .15s ease both}
@@ -43,7 +43,7 @@
       <div></div>
       <div class="kh-w-mid">
         <img class="kh-w-logo" src="./icons/welcome-logo.webp" alt="" width="150" height="150" />
-        <h1>صيدلية <b>الخليل</b></h1>
+        <h1>صيدلية <b>الخليل</b></h1><div style="font-size:20px;font-weight:700;color:rgba(255,255,255,.85);margin-top:-6px">د. شريف</div>
         <p>أهلاً بيك. اطلب دواءك ومستلزماتك والتوصيل لحد باب البيت.</p>
         <div class="kh-w-bar"><i></i></div>
         <div class="kh-w-perks"><span>توصيل مجاني 24 ساعة</span><span>أكتر من 37 ألف صنف</span><span>نقاط ولاء على كل طلب</span></div>
