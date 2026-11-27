@@ -37,17 +37,17 @@
         @keyframes khw-pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
         @keyframes khw-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
         @media (prefers-reduced-motion:reduce){#kh-welcome *{animation:none!important}}
+              #kh-welcome .kh-w-bar{width:150px;height:4px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden;margin-top:18px}
+        #kh-welcome .kh-w-bar i{display:block;height:100%;width:100%;background:#e8c65a;border-radius:4px;transform-origin:right;animation:khw-bar 2.1s cubic-bezier(.4,0,.2,1) both}
+        @keyframes khw-bar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
       </style>
       <div></div>
       <div class="kh-w-mid">
         <img class="kh-w-logo" src="./icons/welcome-logo.webp" alt="" width="112" height="112" />
         <h1>صيدلية <b>الخليل</b></h1>
         <p>أهلاً بيك. اطلب دواءك ومستلزماتك والتوصيل لحد باب البيت.</p>
+        <div class="kh-w-bar"><i></i></div>
         <div class="kh-w-perks"><span>توصيل مجاني 24 ساعة</span><span>أكتر من 37 ألف صنف</span><span>نقاط ولاء على كل طلب</span></div>
-      </div>
-      <div class="kh-w-bot">
-        <button type="button" id="kh-w-go">ابدأ التسوق</button>
-        <small>تقدر ترفع روشتتك وتتابع طلباتك من نفس التطبيق</small>
       </div>
     </div>
     <script>
@@ -55,9 +55,9 @@
         var w=document.getElementById('kh-welcome');
         if(sessionStorage.getItem('kh_w')||/^#\/admin/.test(location.hash)){w.remove();return}
         w.style.display='flex';document.documentElement.style.overflow='hidden';
-        document.getElementById('kh-w-go').onclick=function(){
-          sessionStorage.setItem('kh_w','1');w.classList.add('kh-w-out');document.documentElement.style.overflow='';
+        var done=function(){if(!w.parentNode)return;sessionStorage.setItem('kh_w','1');w.classList.add('kh-w-out');document.documentElement.style.overflow='';
           setTimeout(function(){w.remove()},380)};
+        setTimeout(done,2300);w.onclick=done;
       }catch(e){var x=document.getElementById('kh-welcome');x&&x.remove()}})();
     </script>
   </body>
