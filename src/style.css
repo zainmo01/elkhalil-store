@@ -1845,22 +1845,9 @@ html, body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: no
 a, button { touch-action: manipulation; }
 .kh-grid { contain: layout style; }
 
-/* Mobile header: same quick links and delivery note as desktop, in a compact form. */
-@media (max-width: 999px) {
-    .kh-navstrip { display: block; background: #05483c; padding: 0 18px 8px; }
-    .kh-topnav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 2px 0 6px; }
-    .kh-topnav::-webkit-scrollbar { display: none; }
-    .kh-topnav a { flex: 1 0 auto; text-align: center; color: #d9ebe5; text-decoration: none; font-weight: 700; font-size: 13.5px; padding: 7px 12px; border-radius: 999px; white-space: nowrap; background: rgba(255,255,255,.08); }
-    .kh-topnav a.is-active { background: #e8c65a; color: #05483c; }
-    .kh-navnote { display: flex; align-items: center; justify-content: center; gap: 6px; color: #e8c65a; font-size: 12.5px; font-weight: 700; padding-top: 2px; }
-}
 /* Desktop: the top bar sits on the green header, so text and icons must be light. */
 @media (min-width: 1000px) {
     .kh-brand, .kh-brand-name { color: #fff; }
     .kh-icon-btn { color: #fff; }
     .kh-icon-btn:hover { background: rgba(255,255,255,.12); }
-}
-@media (max-width: 999px) {
-    .kh-topnav { overflow: visible; gap: 5px; }
-    .kh-topnav a { flex: 1 1 0; min-width: 0; padding: 7px 4px; font-size: 13px; }
 }
