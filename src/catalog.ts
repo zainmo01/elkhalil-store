@@ -12,6 +12,11 @@ let ready = false;
 const subs = new Set<() => void>();
 export const catalogHooks: Array<() => void> = [];
 const bump = () => { version++; catalogHooks.forEach((f) => { try { f(); } catch { /* ignore */ } }); subs.forEach((f) => f()); };
+// Re-rendering the whole app on every part is costly on slow phones, so intermediate parts only
+// trigger a render when the screen needs them (not the plain home grid).
+export const live = { want: false };
+export const refreshCatalog = () => bump();
+const needNow = () => live.want || !/^(#\/?)?$/.test(location.hash);
 export const isCatalogReady = () => ready;
 export function useCatalogVersion(): number {
     return React.useSyncExternalStore((cb) => { subs.add(cb); return () => { subs.delete(cb); }; }, () => version);
@@ -32,7 +37,7 @@ export async function loadRestInBackground(): Promise<void> {
         try {
             const list = (await (await fetch(u)).json()) as CatalogItem[];
             add(list);
-            bump();
+            if (needNow()) bump(); else catalogHooks.forEach((f) => { try { f(); } catch { /* ignore */ } });
         } catch { await new Promise((r) => setTimeout(r, 3000)); try { add((await (await fetch(u)).json()) as CatalogItem[]); bump(); } catch { /* offline: stay partial */ } }
         await new Promise((r) => setTimeout(r, 60));
     }

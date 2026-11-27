@@ -29,7 +29,7 @@ import c4_2 from './photos/cat/c4_2.webp';
 
 // ===== REAL CATALOG (loaded from the pharmacy's item file) =====
 // catalog.ts holds customer-safe fields only: id, name, sell price, category.
-import { CATALOG, BY_ID, useCatalogVersion, isCatalogReady, catalogHooks } from './catalog';
+import { CATALOG, BY_ID, useCatalogVersion, isCatalogReady, catalogHooks, live, refreshCatalog } from './catalog';
 import type { CatalogItem } from './catalog';
 
 const CAT_NAMES = ['الأدوية', 'العناية', 'الفيتامينات', 'الأم والطفل', 'أجهزة طبية'];
@@ -870,6 +870,7 @@ function Shop() {
     const [featIds] = useFeatured();
     FEAT_SET.s = new Set(featIds);
     const ci = CAT_NAMES.indexOf(cat);
+    React.useEffect(() => { live.want = cat !== 'الكل' || q !== ''; if (live.want && !isCatalogReady()) refreshCatalog(); return () => { live.want = false; }; }, [cat, q]);
     const base = useMemo(() => {
         let b: CatalogItem[] = cat === 'الكل' ? CATALOG : CATALOG.filter((p) => p.c === ci);
         if (q !== '') b = b.filter((p) => p.n.toLowerCase().includes(q));
