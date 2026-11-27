@@ -92,6 +92,8 @@ function useShop() { return React.useContext(ShopContext); }
 
 // ===== ICONS (inline SVG — no emoji) =====
 const PATHS: Record<string, React.ReactNode> = {
+    shield: <path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z" />,
+    star: <path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8z" />,
     cart: <><circle cx="9" cy="20" r="1.6" /><circle cx="17" cy="20" r="1.6" /><path d="M3 4h2l2.4 11h9.9l2-8H6" /></>,
     bell: <><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" /></>,
@@ -238,13 +240,18 @@ function SearchBox() {
             <Icon name="search" size={18} />
             <input
                 value={text}
-                onChange={(e) => { setText(e.target.value); setOpen(true); if (e.target.value.trim() === '') setQuery(''); }}
-                onFocus={() => setOpen(true)}
+                onChange={(e) => { if (/^\+?\d{10,13}$/.test(e.target.value.trim())) { setText(''); setQuery(''); return; } setText(e.target.value); setOpen(true); if (e.target.value.trim() === '') setQuery(''); }}
+                onFocus={(e) => { e.currentTarget.readOnly = false; setOpen(true); }}
+                readOnly
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                inputMode="search"
                 onKeyDown={onKey}
                 placeholder="ابحث عن دواء أو منتج..."
                 aria-label="ابحث في المتجر"
                 type="search"
-                name="q"
+                name="kh_find_x9"
                 role="combobox"
                 aria-expanded={showList}
                 aria-autocomplete="list"
@@ -395,33 +402,49 @@ function AdminFeatured() {
     const items = ids.map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p);
     return <>
         <AdminTabs active="featured" />
-        <p className="kh-section">منتجات الصفحة الرئيسية</p>
-        <Paragraph>المنتجات اللي هنا بتظهر أول حاجة في الصفحة الرئيسية بالترتيب ده. الباقي بيكمل بعدها زي ما هو.</Paragraph>
-        <label className="kh-field">
-            <span>ابحث عن منتج عشان تضيفه</span>
-            <input type="search" name="feat-q" autoComplete="off" value={text} onChange={(e) => setText(e.target.value)} placeholder="اكتب اسم المنتج..." />
-        </label>
-        {res.length > 0 && <ul className="kh-ft-res">
-            {res.map((p) => {
-                const on = ids.includes(p.i);
-                return <li key={p.i}>
-                    <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(p.p)} ج.م</small></span>
-                    <button type="button" className={`kh-ft-add${on ? ' is-on' : ''}`} disabled={on} onClick={() => save([...ids, p.i])}>{on ? '✓ مضاف' : '+ إضافة'}</button>
-                </li>;
-            })}
-        </ul>}
-        <p className="kh-section">المختارة ({items.length.toLocaleString('en-US')}) <span className="kh-ft-state">{state === 'busy' ? 'جاري الحفظ…' : state === 'ok' ? '✓ تم الحفظ' : state === 'err' ? 'تعذر الحفظ، جرب تاني' : ''}</span></p>
-        {items.length === 0
-            ? <div className="kh-empty"><Paragraph>مفيش منتجات مختارة. الصفحة الرئيسية بتعرض المنتجات زي ما هي.</Paragraph></div>
-            : <ol className="kh-ft-list">
-                {items.map((p, i) => <li key={p.i}>
-                    <span className="kh-ft-n">{(i + 1).toLocaleString('en-US')}</span>
-                    <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(p.p)} ج.م</small></span>
-                    <button type="button" className="kh-ft-btn" aria-label="فوق" disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
-                    <button type="button" className="kh-ft-btn" aria-label="تحت" disabled={i === items.length - 1} onClick={() => move(i, 1)}>▼</button>
-                    <button type="button" className="kh-ft-btn kh-ft-del" aria-label="حذف" onClick={() => save(ids.filter((x) => x !== p.i))}>✕</button>
-                </li>)}
-            </ol>}
+        <section className="kh-ftp">
+            <header className="kh-ftp-head">
+                <span className="kh-ftp-ico"><Icon name="star" size={22} /></span>
+                <div>
+                    <h2>المنتجات المميزة</h2>
+                    <p>اللي تضيفه هنا بيظهر أول حاجة في الرئيسية بنفس الترتيب.</p>
+                </div>
+            </header>
+            <div className="kh-ftp-card">
+                <label className="kh-ftp-search">
+                    <Icon name="search" size={18} />
+                    <input type="search" name="kh_feat_x7" autoComplete="off" readOnly onFocus={(e) => { e.currentTarget.readOnly = false; }} spellCheck={false} inputMode="search" value={text} onChange={(e) => setText(/^\+?\d{10,13}$/.test(e.target.value.trim()) ? '' : e.target.value)} placeholder="ابحث عن منتج عشان تضيفه..." aria-label="ابحث عن منتج" />
+                </label>
+                {res.length > 0 && <ul className="kh-ft-res">
+                    {res.map((p) => {
+                        const on = ids.includes(p.i);
+                        return <li key={p.i}>
+                            <img className="kh-ft-img" src={photoFor(p.c, p.i)} alt="" loading="lazy" />
+                            <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(p.p)} ج.م</small></span>
+                            <button type="button" className={`kh-ft-add${on ? ' is-on' : ''}`} disabled={on} onClick={() => save([...ids, p.i])}>{on ? '✓ مضاف' : '+ إضافة'}</button>
+                        </li>;
+                    })}
+                </ul>}
+            </div>
+            <div className="kh-ftp-sub">
+                <strong>المختارة <b>{items.length.toLocaleString('en-US')}</b></strong>
+                <span className="kh-ft-state">{state === 'busy' ? 'جاري الحفظ…' : state === 'ok' ? '✓ تم الحفظ' : state === 'err' ? 'تعذر الحفظ' : ''}</span>
+            </div>
+            {items.length === 0
+                ? <div className="kh-ftp-empty"><Icon name="star" size={28} /><span>مفيش منتجات مختارة. الرئيسية بتعرض المنتجات زي ما هي.</span></div>
+                : <ol className="kh-ft-list">
+                    {items.map((p, i) => <li key={p.i}>
+                        <span className="kh-ft-n">{(i + 1).toLocaleString('en-US')}</span>
+                        <img className="kh-ft-img" src={photoFor(p.c, p.i)} alt="" loading="lazy" />
+                        <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(p.p)} ج.م</small></span>
+                        <span className="kh-ft-ctl">
+                            <button type="button" className="kh-ft-btn" aria-label="فوق" disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
+                            <button type="button" className="kh-ft-btn" aria-label="تحت" disabled={i === items.length - 1} onClick={() => move(i, 1)}>▼</button>
+                            <button type="button" className="kh-ft-btn kh-ft-del" aria-label="حذف" onClick={() => save(ids.filter((x) => x !== p.i))}>✕</button>
+                        </span>
+                    </li>)}
+                </ol>}
+        </section>
     </>;
 }
 
@@ -614,7 +637,7 @@ const CATEGORY_ICONS: { cat: string; icon: keyof typeof PATHS }[] = [
 function CategoryRow() {
     const { cat, setCat } = useShop();
     return <div className="kh-cats" id="kh-cats">
-        <p className="kh-section">الفئات</p>
+        <div className="kh-sec-head"><p className="kh-section">تسوق حسب القسم</p></div>
         <div className="kh-cats-row">
             {CATEGORY_ICONS.map((c, ci) => <button
                 key={c.cat}
@@ -693,7 +716,7 @@ function Shop() {
         <RxBanner />
         <CartBar />
         <div className="kh-grid-head" id="kh-grid">
-            <p className="kh-section">{cat === 'الكل' ? 'الأكثر مبيعاً' : cat} <span className="kh-count">({shown.length.toLocaleString('en-US')} صنف)</span></p>
+            <p className="kh-section">{cat === 'الكل' ? 'الأكثر مبيعاً' : cat}</p><span className="kh-count">{shown.length.toLocaleString('en-US')} صنف</span>
             {cat !== 'الكل' && <button type="button" className="kh-linklike" onClick={() => setCat('الكل')}>عرض الكل</button>}
         </div>
         <div className="kh-chips">
@@ -1368,12 +1391,15 @@ function AdminTabs({ active }: { active: string }) {
         { to: '/admin/notify', label: 'الإشعارات', key: 'notify' },
         { to: '/admin/loyalty', label: 'نقاط الولاء', key: 'loyalty' },
     ];
-    return <>
-        <div className="kh-chips kh-admin-tabs">
-            {tabs.map((t) => <Link key={t.key} to={t.to} className={`kh-chip${t.key === active ? ' is-active' : ''}`}>{t.label}</Link>)}
+    return <div className="kh-adm-top">
+        <div className="kh-adm-bar">
+            <span className="kh-adm-title"><Icon name="shield" size={18} /> لوحة الأدمن</span>
+            <Link className="kh-adm-back" to="/">المتجر <Icon name="back" size={14} /></Link>
         </div>
-        <Link className="kh-biglink" to="/">رجوع للمتجر</Link>
-    </>;
+        <div className="kh-adm-tabs" role="tablist">
+            {tabs.map((t) => <Link key={t.key} to={t.to} ref={(el) => { if (el && t.key === active) el.scrollIntoView({ inline: 'center', block: 'nearest' }); }} className={`kh-adm-tab${t.key === active ? ' is-active' : ''}`}>{t.label}</Link>)}
+        </div>
+    </div>;
 }
 
 function AdminHome() {
