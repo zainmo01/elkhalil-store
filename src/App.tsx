@@ -310,7 +310,8 @@ function Header() {
             </Link>
             <SearchBox />
             <div className="kh-header-icons">
-                <Link to="/account" className="kh-icon-btn" aria-label="حسابي"><Icon name="user" /><em>حسابي</em></Link>
+                {userPhoneH && userPhoneH !== ADMIN_PHONE && loyH && <Link to="/account" className="kh-hd-pts" aria-label="نقاطي" onClick={() => setSelectedId(null)}>★ <b>{loyH.balance.toLocaleString('en-US')}</b></Link>}
+                <Link to={userPhoneH === ADMIN_PHONE ? '/admin' : '/account'} className="kh-icon-btn" aria-label="حسابي" onClick={() => setSelectedId(null)}><Icon name="user" /><em>{nameH || 'حسابي'}</em></Link>
                 <Link to="/notifications" className="kh-icon-btn" aria-label="الإشعارات" onClick={() => setSelectedId(null)}>
                     <Icon name="bell" />
                     {notif.unread > 0 && <b className="kh-badge">{notif.unread.toLocaleString('en-US')}</b>}
@@ -323,12 +324,12 @@ function Header() {
                 </Link>
             </div>
         </div>
-        {userChip('kh-ub-mobile')}
+        {userPhoneH === ADMIN_PHONE && userChip('kh-ub-mobile')}
         <div className="kh-navstrip">
             <nav className="kh-topnav" aria-label="التنقل الرئيسي">
                 {links.map((l) => <Link key={l.to} to={l.to} className={pathname === l.to ? 'is-active' : ''} onClick={() => { setSelectedId(null); if (l.to === '/') setCat('الكل'); window.scrollTo(0, 0); }}>{l.label}</Link>)}
             </nav>
-            {userChip('kh-ub-desktop')}
+            {userPhoneH === ADMIN_PHONE && userChip('kh-ub-desktop')}
             <span className="kh-navnote"><Icon name="truck" size={16} /> توصيل مجاني على كل الطلبات، 24 ساعة</span>
         </div>
     </header>;
