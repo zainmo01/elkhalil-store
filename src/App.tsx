@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { getAnnouncement, myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
+import { getAnnouncement, getFeatured, myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
 import type { OrderRow, RxRow, NotifRow, LoyaltyInfo } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
@@ -378,6 +378,53 @@ function AdminLoyalty() {
     </>;
 }
 
+function AdminFeatured() {
+    const [key] = useAdminKey();
+    const [ids, setIds] = useFeatured();
+    const [text, setText] = useState('');
+    const [state, setState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
+    const res = text.trim() === '' ? [] : searchProducts(text, 8);
+    const save = (next: string[]) => {
+        setIds(next);
+        setState('busy');
+        adminCall(key, 'featured-set', { ids: next })
+            .then(() => { setState('ok'); window.setTimeout(() => setState('idle'), 1800); })
+            .catch(() => setState('err'));
+    };
+    const move = (i: number, d: number) => { const n = [...ids]; const j = i + d; if (j < 0 || j >= n.length) return; [n[i], n[j]] = [n[j], n[i]]; save(n); };
+    const items = ids.map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p);
+    return <>
+        <AdminTabs active="featured" />
+        <p className="kh-section">منتجات الصفحة الرئيسية</p>
+        <Paragraph>المنتجات اللي هنا بتظهر أول حاجة في الصفحة الرئيسية بالترتيب ده. الباقي بيكمل بعدها زي ما هو.</Paragraph>
+        <label className="kh-field">
+            <span>ابحث عن منتج عشان تضيفه</span>
+            <input type="search" name="feat-q" autoComplete="off" value={text} onChange={(e) => setText(e.target.value)} placeholder="اكتب اسم المنتج..." />
+        </label>
+        {res.length > 0 && <ul className="kh-ft-res">
+            {res.map((p) => {
+                const on = ids.includes(p.i);
+                return <li key={p.i}>
+                    <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(p.p)} ج.م</small></span>
+                    <button type="button" className={`kh-ft-add${on ? ' is-on' : ''}`} disabled={on} onClick={() => save([...ids, p.i])}>{on ? '✓ مضاف' : '+ إضافة'}</button>
+                </li>;
+            })}
+        </ul>}
+        <p className="kh-section">المختارة ({items.length.toLocaleString('en-US')}) <span className="kh-ft-state">{state === 'busy' ? 'جاري الحفظ…' : state === 'ok' ? '✓ تم الحفظ' : state === 'err' ? 'تعذر الحفظ، جرب تاني' : ''}</span></p>
+        {items.length === 0
+            ? <div className="kh-empty"><Paragraph>مفيش منتجات مختارة. الصفحة الرئيسية بتعرض المنتجات زي ما هي.</Paragraph></div>
+            : <ol className="kh-ft-list">
+                {items.map((p, i) => <li key={p.i}>
+                    <span className="kh-ft-n">{(i + 1).toLocaleString('en-US')}</span>
+                    <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(p.p)} ج.م</small></span>
+                    <button type="button" className="kh-ft-btn" aria-label="فوق" disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
+                    <button type="button" className="kh-ft-btn" aria-label="تحت" disabled={i === items.length - 1} onClick={() => move(i, 1)}>▼</button>
+                    <button type="button" className="kh-ft-btn kh-ft-del" aria-label="حذف" onClick={() => save(ids.filter((x) => x !== p.i))}>✕</button>
+                </li>)}
+            </ol>}
+    </>;
+}
+
 function AdminNotify() {
     const [key] = useAdminKey();
     const notif = React.useContext(NotifContext);
@@ -605,13 +652,38 @@ function RxBanner() {
 
 const GRID_PAGE = 48;
 
+const FEAT_KEY = 'kh_featured';
+function readFeat(): string[] { try { const v = JSON.parse(localStorage.getItem(FEAT_KEY) ?? '[]'); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } }
+function useFeatured(): [string[], (ids: string[]) => void] {
+    const [ids, setIds] = useState<string[]>(readFeat);
+    React.useEffect(() => {
+        let alive = true;
+        const load = () => { getFeatured().then((r) => { if (alive && r) { setIds(r); try { localStorage.setItem(FEAT_KEY, JSON.stringify(r)); } catch {} } }).catch(() => {}); };
+        load();
+        const onVis = () => { if (document.visibilityState === 'visible') load(); };
+        document.addEventListener('visibilitychange', onVis);
+        return () => { alive = false; document.removeEventListener('visibilitychange', onVis); };
+    }, []);
+    const set = (n: string[]) => { setIds(n); try { localStorage.setItem(FEAT_KEY, JSON.stringify(n)); } catch {} };
+    return [ids, set];
+}
+
 function Shop() {
     const { cat, setCat, query } = useShop();
     const [limit, setLimit] = useState(GRID_PAGE);
     React.useEffect(() => setLimit(GRID_PAGE), [cat, query]);
     const q = query.trim().toLowerCase();
+    const [featIds] = useFeatured();
     let shown = cat === 'الكل' ? CATALOG : CATALOG.filter((p) => p.c === CAT_NAMES.indexOf(cat));
     if (q !== '') shown = shown.filter((p) => p.n.toLowerCase().includes(q));
+    else if (featIds.length > 0) {
+        // Admin-curated picks first, in the admin's order; the rest keeps today's order.
+        const picks = featIds.map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p && (cat === 'الكل' || p.c === CAT_NAMES.indexOf(cat)));
+        if (picks.length > 0) {
+            const ps = new Set(picks.map((p) => p.i));
+            shown = [...picks, ...shown.filter((p) => !ps.has(p.i))];
+        }
+    }
     const visible = shown.slice(0, limit);
     const remaining = shown.length - visible.length;
     return <>
@@ -1292,6 +1364,7 @@ function AdminTabs({ active }: { active: string }) {
         { to: '/admin/orders', label: 'الأوردرات', key: 'orders' },
         { to: '/admin/products', label: 'المنتجات', key: 'products' },
         { to: '/admin/rx', label: 'الروشتات', key: 'rx' },
+        { to: '/admin/featured', label: 'المميزة', key: 'featured' },
         { to: '/admin/notify', label: 'الإشعارات', key: 'notify' },
         { to: '/admin/loyalty', label: 'نقاط الولاء', key: 'loyalty' },
     ];
@@ -1739,6 +1812,7 @@ export function App() {
                         <Route path="/admin/products" element={<AdminGate><AdminProducts /></AdminGate>} />
                         <Route path="/admin/rx" element={<AdminGate><AdminRx /></AdminGate>} />
                         <Route path="/admin/loyalty" element={<AdminGate><AdminLoyalty /></AdminGate>} />
+                        <Route path="/admin/featured" element={<AdminGate><AdminFeatured /></AdminGate>} />
                         <Route path="/admin/notify" element={<AdminGate><AdminNotify /></AdminGate>} />
                         <Route path="/notifications" element={<NotificationsPage />} />
                     </Routes>}

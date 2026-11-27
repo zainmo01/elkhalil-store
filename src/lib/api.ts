@@ -156,6 +156,11 @@ export async function adminCall<T = unknown>(key: string, action: string, payloa
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
         return r.data as T;
     }
+    if (action === 'featured-set') {
+        const r = await supabase.rpc('admin_featured_set', { p_key: key, p_ids: (payload.ids as string[]).join(',') });
+        if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
+        return r.data as T;
+    }
     if (action === 'announce-set') {
         const r = await supabase.rpc('admin_announce_set', { p_key: key, p_text: String(payload.text ?? '') });
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
@@ -252,4 +257,11 @@ export async function getAnnouncement(): Promise<string | null> {
     const { data, error } = await supabase.rpc('announcement_get');
     if (error) return null;
     return typeof data === 'string' ? data : '';
+}
+
+export async function getFeatured(): Promise<string[] | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc('featured_get');
+    if (error) return null;
+    return typeof data === 'string' ? data.split(',').map((s) => s.trim()).filter(Boolean) : [];
 }
