@@ -285,11 +285,13 @@ function Header() {
     const notif = React.useContext(NotifContext);
     const userPhoneH = useUserPhone();
     const loyH = React.useContext(LoyaltyContext).info;
+    const [nameH, setNameH] = useState('');
+    React.useEffect(() => { const f = () => { try { setNameH((userPhoneH && localStorage.getItem(nameKey(userPhoneH))) || ''); } catch { setNameH(''); } }; f(); window.addEventListener('kh-name', f); return () => window.removeEventListener('kh-name', f); }, [userPhoneH]);
     const userChip = (cls: string) => userPhoneH ? <Link to={userPhoneH === ADMIN_PHONE ? '/admin' : '/account'} className={`kh-userbar ${cls}`} onClick={() => setSelectedId(null)}>
         {userPhoneH === ADMIN_PHONE
             ? <span className="kh-ub-item">وضع الأدمن</span>
             : <>
-                <span className="kh-ub-item"><Icon name="user" size={15} /><bdi dir="ltr">{userPhoneH}</bdi></span>
+                <span className="kh-ub-item"><Icon name="user" size={15} />{nameH ? <span>{nameH}</span> : <bdi dir="ltr">{userPhoneH}</bdi>}</span>
                 {loyH && <span className="kh-ub-item kh-ub-pts">★ <b>{loyH.balance.toLocaleString('en-US')}</b> نقطة</span>}
             </>}
     </Link> : null;
@@ -662,6 +664,16 @@ function CategoryRow() {
     </div>;
 }
 
+function Greeting() {
+    const ph = useUserPhone();
+    const [n, setN] = useState('');
+    React.useEffect(() => { const f = () => { try { setN((ph && localStorage.getItem(nameKey(ph))) || ''); } catch { setN(''); } }; f(); window.addEventListener('kh-name', f); return () => window.removeEventListener('kh-name', f); }, [ph]);
+    const h = new Date().getHours();
+    const hi = h < 12 ? 'صباح الخير' : h < 18 ? 'نهارك سعيد' : 'مساء الخير';
+    if (!n) return null;
+    return <div className="kh-greet"><span>{hi}</span><b>{n}</b></div>;
+}
+
 function TrustStrip() {
     const items: { icon: keyof typeof PATHS; t: string; s: string }[] = [
         { icon: 'truck', t: 'توصيل مجاني', s: 'لكل الطلبات' },
@@ -729,6 +741,7 @@ function Shop() {
     const remaining = shown.length - visible.length;
     return <>
         <ScrollTop />
+        <Greeting />
         <HeroCarousel />
         <TrustStrip />
         <CategoryRow />
@@ -860,7 +873,18 @@ function LoyaltyCard() {
     </div>;
 }
 
+const nameKey = (phone: string | null) => `kh_name_${phone ?? ''}`;
+function useUserName(phone: string | null): [string, (v: string) => void] {
+    const [n, setN] = useState(() => { try { return (phone && localStorage.getItem(nameKey(phone))) || ''; } catch { return ''; } });
+    React.useEffect(() => { try { setN((phone && localStorage.getItem(nameKey(phone))) || ''); } catch { setN(''); } }, [phone]);
+    return [n, (v: string) => { setN(v); try { if (v) localStorage.setItem(nameKey(phone), v); else localStorage.removeItem(nameKey(phone)); window.dispatchEvent(new Event('kh-name')); } catch { /* ignore */ } }];
+}
+
 function AccountPage() {
+    const [uname, setUname] = useUserName(useUserPhone());
+    const [draft, setDraft] = useState('');
+    const [editing, setEditing] = useState(false);
+    const [saved, setSaved] = useState(false);
     const phone = useUserPhone();
     const setPhone = React.useContext(UserSetContext);
     const [, setAdminKeyHere] = useAdminKey();
@@ -868,10 +892,29 @@ function AccountPage() {
         <ScrollTop />
         <div className="kh-account-card">
             <span className="kh-account-avatar"><Icon name="user" size={30} /></span>
-            <strong>حسابي</strong>
+            <strong>{uname || 'حسابي'}</strong>
             <span className="kh-account-phone"><bdi dir="ltr">{phone}</bdi></span>
         </div>
+        {<div className="kh-name-card">
+            <span className="kh-name-lbl">الاسم</span>
+            {editing
+                ? <form className="kh-name-form" onSubmit={(e) => { e.preventDefault(); setUname(draft.trim().slice(0, 40)); setEditing(false); setSaved(true); window.setTimeout(() => setSaved(false), 2000); }}>
+                    <input name="kh_nm_x3" autoComplete="off" autoFocus maxLength={40} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="اكتب اسمك" aria-label="الاسم" />
+                    <button type="submit" className="kh-name-save">حفظ</button>
+                    <button type="button" className="kh-name-cancel" onClick={() => setEditing(false)}>إلغاء</button>
+                </form>
+                : <div className="kh-name-row">
+                    <b>{uname || 'لسه ما أضفتش اسمك'}</b>
+                    <button type="button" className="kh-name-edit" onClick={() => { setDraft(uname); setEditing(true); }}>{uname ? 'تعديل' : '+ إضافة الاسم'}</button>
+                </div>}
+            {saved && <span className="kh-name-ok">✓ تم حفظ الاسم</span>}
+        </div>}
         <LoyaltyCard />
+        <div className="kh-qlinks">
+            <Link to="/orders"><Icon name="truck" size={20} /><span>طلباتي</span></Link>
+            <Link to="/notifications"><Icon name="bell" size={20} /><span>الإشعارات</span></Link>
+            <Link to="/prescription"><Icon name="camera" size={20} /><span>ارفع روشتة</span></Link>
+        </div>
         {phone === ADMIN_PHONE && <Link className="kh-confirm kh-confirm-big" to="/admin">لوحة تحكم الأدمن</Link>}
         <button type="button" className="kh-biglink kh-logout" onClick={() => { if (phone === ADMIN_PHONE) setAdminKeyHere(''); setPhone(null); }}><Icon name="logout" size={18} /> تسجيل الخروج</button>
     </div>;
