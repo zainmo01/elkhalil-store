@@ -46,13 +46,45 @@ export async function placeOrder(input: {
 
 // Shrink the photo in the browser so it uploads fast on mobile data.
 async function toDataUrl(file: File): Promise<string> {
-    const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
-    const c = document.createElement('canvas');
-    c.width = Math.round(bmp.width * scale);
-    c.height = Math.round(bmp.height * scale);
-    c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height);
-    return c.toDataURL('image/jpeg', 0.72);
+    const draw = (src: CanvasImageSource, w: number, h: number) => {
+        const scale = Math.min(1, 1400 / Math.max(w, h));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(w * scale));
+        c.height = Math.max(1, Math.round(h * scale));
+        const ctx = c.getContext('2d')!;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(src, 0, 0, c.width, c.height);
+        const out = c.toDataURL('image/jpeg', 0.72);
+        if (!out.startsWith('data:image/jpeg')) throw new Error('encode');
+        return out;
+    };
+    // 1) fast path
+    try {
+        const bmp = await createImageBitmap(file);
+        return draw(bmp, bmp.width, bmp.height);
+    } catch { /* try next */ }
+    // 2) <img> decode (works in WebViews / formats createImageBitmap refuses)
+    try {
+        const url = URL.createObjectURL(file);
+        try {
+            const img = new Image();
+            img.src = url;
+            await img.decode();
+            return draw(img, img.naturalWidth, img.naturalHeight);
+        } finally { URL.revokeObjectURL(url); }
+    } catch { /* try next */ }
+    // 3) send the original if it is small enough for the server
+    if (file.size <= 2_000_000) {
+        const raw = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result));
+            r.onerror = () => rej(new Error('read'));
+            r.readAsDataURL(file);
+        });
+        if (raw.startsWith('data:image/')) return raw;
+    }
+    throw new Error('bad photo');
 }
 
 // Submit a prescription: the photo is stored in the private prescriptions table

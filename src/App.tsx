@@ -953,9 +953,11 @@ function PrescriptionPage() {
         if (!file) return;
         setFileName(file.name);
         setFileObj(file);
-        const reader = new FileReader();
-        reader.onload = () => setPreview(typeof reader.result === 'string' ? reader.result : null);
-        reader.readAsDataURL(file);
+        try { setPreview(URL.createObjectURL(file)); } catch {
+            const reader = new FileReader();
+            reader.onload = () => setPreview(typeof reader.result === 'string' ? reader.result : null);
+            reader.readAsDataURL(file);
+        }
     };
 
     const [altOk, setAltOk] = useState(true);
@@ -1021,8 +1023,9 @@ function PrescriptionPage() {
                 await submitRx({ phone: userPhone, file: fileObj, want_substitutes: altOk, want_call: callOk, notes: notes.trim() });
                 setSent(true);
                 window.scrollTo(0, 0);
-            } catch {
-                setSendErr('حصلت مشكلة في إرسال الروشتة. جرب تاني.');
+            } catch (e) {
+                const m = e instanceof Error ? e.message : '';
+                setSendErr(/bad photo/i.test(m) ? 'الصورة دي مش مقبولة. جرب صورة تانية (JPG أو PNG) أو صوّرها من جديد.' : 'حصلت مشكلة في إرسال الروشتة. جرب تاني.');
             } finally {
                 setSending(false);
             }
