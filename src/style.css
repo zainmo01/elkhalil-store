@@ -1860,3 +1860,7 @@ a, button { touch-action: manipulation; }
     .kh-icon-btn { color: #fff; }
     .kh-icon-btn:hover { background: rgba(255,255,255,.12); }
 }
+@media (max-width: 999px) {
+    .kh-topnav { overflow: visible; gap: 5px; }
+    .kh-topnav a { flex: 1 1 0; min-width: 0; padding: 7px 4px; font-size: 13px; }
+}
