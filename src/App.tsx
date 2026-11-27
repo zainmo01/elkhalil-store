@@ -97,6 +97,8 @@ const PATHS: Record<string, React.ReactNode> = {
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" /></>,
     eye: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
     eyeoff: <><path d="M3 3l18 18" /><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.5 6.6C3.7 8.3 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>,
+    phone: <><rect x="7" y="2.5" width="10" height="19" rx="2.5" /><path d="M11 18.5h2" /></>,
+    lock: <><rect x="5" y="11" width="14" height="9.5" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
     search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
     home: <><path d="M4 11 12 4l8 7" /><path d="M6 10v10h12V10" /></>,
     grid: <><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></>,
@@ -113,9 +115,10 @@ const PATHS: Record<string, React.ReactNode> = {
     truck: <><rect x="2" y="7" width="12" height="9" rx="1" /><path d="M14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="1.8" /><circle cx="17" cy="18" r="1.8" /></>,
 };
 
-function PassInput({ value, onChange, autoComplete }: { value: string; onChange: (v: string) => void; autoComplete: string }) {
+function PassInput({ value, onChange, autoComplete, icon }: { value: string; onChange: (v: string) => void; autoComplete: string; icon?: keyof typeof PATHS }) {
     const [show, setShow] = useState(false);
     return <span className="kh-passwrap">
+        {icon && <span className="kh-fi"><Icon name={icon} size={19} /></span>}
         <input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} autoComplete={autoComplete} dir="ltr" style={{ textAlign: 'right' }} />
         <button type="button" className="kh-eye" aria-label={show ? 'إخفاء الباسورد' : 'إظهار الباسورد'} aria-pressed={show} onClick={() => setShow((v) => !v)}><Icon name={show ? 'eyeoff' : 'eye'} size={20} /></button>
     </span>;
@@ -931,41 +934,57 @@ function LoginPage({ onLogin, onCancel }: { onLogin: (phone: string) => void; on
         } catch { setMsg('تعذر الاتصال. جرب تاني.'); }
         setBusy(false);
     };
-    return <div className="kh-login">
+    const heading = step === 'phone' ? 'أهلاً بيك' : step === 'login' ? 'سجّل دخولك' : step === 'legacy' ? 'اختار باسورد جديد' : 'اعمل حسابك';
+    const sub = step === 'phone' ? 'اكتب رقم موبايلك للدخول أو لعمل حساب جديد.'
+        : step === 'login' ? 'اكتب الباسورد بتاعك للدخول.'
+        : step === 'legacy' ? 'حسابك متسجل عندنا من قبل. اختار باسورد جديد وأكده عشان نحمي طلباتك ونقاطك.'
+        : 'حساب جديد: اختار باسورد وأكده.';
+    const hint = msg !== '' ? msg : !phoneReady ? ''
+        : step !== 'phone' && pass.length > 0 && pass.length < 6 ? 'الباسورد 6 حروف أو أرقام على الأقل.'
+        : reg && pass2 !== '' && pass !== pass2 ? 'الباسورد وتأكيده مش متطابقين.' : '';
+    return <div className="kh-lg">
         <ScrollTop />
-        <img src={logo} alt="لوجو صيدلية الخليل" className="kh-login-logo" />
-        <p className="kh-login-title">صيدلية <b>الخليل</b></p>
-        <p className="kh-login-sub">مرحباً بك في صيدلية الخليل</p>
-        <Paragraph>{step === 'phone' ? 'اكتب رقم موبايلك للدخول أو لعمل حساب جديد.'
-            : step === 'login' ? 'اكتب الباسورد بتاعك للدخول.'
-            : step === 'legacy' ? 'حسابك متسجل عندنا من قبل. اختار باسورد جديد وأكده عشان نحمي طلباتك ونقاطك.'
-            : 'حساب جديد: اختار باسورد وأكده.'}</Paragraph>
-        <label className="kh-field">
-            <span>رقم الموبايل</span>
-            <input
-                value={phone}
-                onChange={(e) => { setPhone(digitsOnly(e.target.value)); setStep('phone'); setPass(''); setPass2(''); setMsg(''); }}
-                placeholder="01xxxxxxxxx"
-                inputMode="tel"
-                autoComplete="tel"
-                dir="ltr"
-                style={{ textAlign: 'right' }}
-            />
-        </label>
-        {step !== 'phone' && <label className="kh-field">
-            <span>الباسورد</span>
-            <PassInput value={pass} onChange={setPass} autoComplete={reg ? 'new-password' : 'current-password'} />
-        </label>}
-        {reg && <label className="kh-field">
-            <span>تأكيد الباسورد</span>
-            <PassInput value={pass2} onChange={setPass2} autoComplete="new-password" />
-        </label>}
-        <button type="button" className="kh-confirm kh-confirm-big" disabled={busy || !phoneReady || (step !== 'phone' && !passOk)} onClick={next}>
-            {step === 'phone' ? 'متابعة' : reg ? 'إنشاء الحساب' : 'دخول'}
-        </button>
-        <Caption>{msg !== '' ? msg : !phoneReady ? 'رقم الموبايل 11 رقم وبيبدأ بـ 01.'
-            : step !== 'phone' && pass.length > 0 && pass.length < 6 ? 'الباسورد 6 حروف أو أرقام على الأقل.'
-            : reg && pass2 !== '' && pass !== pass2 ? 'الباسورد وتأكيده مش متطابقين.' : ''}</Caption>
+        <div className="kh-lg-hero">
+            <img src={logo} alt="لوجو صيدلية الخليل" className="kh-lg-logo" />
+            <p className="kh-lg-brand">صيدلية <b>الخليل</b></p>
+            <p className="kh-lg-tag">دواك وطلباتك لحد باب البيت</p>
+        </div>
+        <div className="kh-lg-card">
+            <h2 className="kh-lg-h">{heading}</h2>
+            <p className="kh-lg-p">{sub}</p>
+            <label className="kh-field">
+                <span>رقم الموبايل</span>
+                <span className="kh-passwrap">
+                    <span className="kh-fi"><Icon name="phone" size={19} /></span>
+                    <input
+                        value={phone}
+                        onChange={(e) => { setPhone(digitsOnly(e.target.value)); setStep('phone'); setPass(''); setPass2(''); setMsg(''); }}
+                        placeholder="01xxxxxxxxx"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        dir="ltr"
+                        style={{ textAlign: 'right' }}
+                    />
+                </span>
+            </label>
+            {step !== 'phone' && <label className="kh-field">
+                <span>الباسورد</span>
+                <PassInput icon="lock" value={pass} onChange={setPass} autoComplete={reg ? 'new-password' : 'current-password'} />
+            </label>}
+            {reg && <label className="kh-field">
+                <span>تأكيد الباسورد</span>
+                <PassInput icon="lock" value={pass2} onChange={setPass2} autoComplete="new-password" />
+            </label>}
+            <button type="button" className="kh-confirm kh-confirm-big kh-lg-go" disabled={busy || !phoneReady || (step !== 'phone' && !passOk)} onClick={next}>
+                {busy ? 'ثانية واحدة…' : step === 'phone' ? 'متابعة' : reg ? 'إنشاء الحساب' : 'دخول'}
+            </button>
+            <p className={`kh-lg-hint${hint !== '' ? ' is-on' : ''}`} role="status">{hint}</p>
+        </div>
+        <ul className="kh-lg-trust">
+            <li><Icon name="truck" size={20} /><span>توصيل مجاني<br />24 ساعة</span></li>
+            <li><Icon name="stetho" size={20} /><span>صيدلي بيراجع<br />طلبك</span></li>
+            <li><Icon name="receipt" size={20} /><span>طلباتك ونقاطك<br />محفوظة</span></li>
+        </ul>
         {onCancel && <button type="button" className="kh-biglink" onClick={onCancel}>رجوع للتصفح</button>}
     </div>;
 }
@@ -1008,8 +1027,8 @@ function PrescriptionPage() {
         <ScrollTop />
         <div className="kh-steps" dir="rtl">
             <span className="kh-step is-active">1. رفع الروشتة</span>
-            <span className="kh-step">2. التأكيد</span>
-            <span className="kh-step">3. الاستلام</span>
+            <span className="kh-step">2. مراجعة الصيدلي</span>
+            <span className="kh-step">3. اتصال وتوصيل</span>
         </div>
         <Paragraph>صوّر الروشتة أو ارفع صورتها وسيب رقمك، والصيدلي هيراجعها ويتصل بيك لتأكيد الطلب والتوصيل.</Paragraph>
         <input
