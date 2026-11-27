@@ -113,6 +113,7 @@ const PATHS: Record<string, React.ReactNode> = {
     back: <path d="M9 6l6 6-6 6" />,
     logout: <><path d="M14 4h-8v16h8" /><path d="M11 12h9m-3-3 3 3-3 3" /></>,
     check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+    trash: <><path d="M4 7h16" /><path d="M9 7V4.5h6V7" /><path d="M6.5 7l1 13h9l1-13" /><path d="M10 11v6M14 11v6" /></>,
     truck: <><rect x="2" y="7" width="12" height="9" rx="1" /><path d="M14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="1.8" /><circle cx="17" cy="18" r="1.8" /></>,
 };
 
@@ -1464,10 +1465,13 @@ function CartPage() {
                     <span className="kh-card-name">{product.n}</span>
                     <span className="kh-card-price">{egp(product.p * qty)}</span>
                 </div>
-                <div className="kh-qty" dir="ltr">
-                    <button type="button" aria-label="زود الكمية" onClick={() => cart.set(product.i, qty + 1)}>+</button>
-                    <span>{qty.toLocaleString('en-US')}</span>
-                    <button type="button" aria-label={qty === 1 ? 'امسح من السلة' : 'قلل الكمية'} onClick={() => cart.set(product.i, qty - 1)}>{qty === 1 ? '×' : '−'}</button>
+                <div className="kh-qty-wrap">
+                    <div className="kh-qty" dir="ltr">
+                        <button type="button" aria-label="قلل الكمية" disabled={qty <= 1} onClick={() => cart.set(product.i, qty - 1)}>−</button>
+                        <span>{qty.toLocaleString('en-US')}</span>
+                        <button type="button" aria-label="زود الكمية" onClick={() => cart.set(product.i, qty + 1)}>+</button>
+                    </div>
+                    <button type="button" className="kh-qty-del" aria-label="امسح من السلة" onClick={() => cart.set(product.i, 0)}><Icon name="trash" size={18} /></button>
                 </div>
             </div>)}
         </div>
