@@ -706,7 +706,7 @@ function ProductCard({ p }: { p: CatalogItem }) {
     const feat = FEAT_SET.s.has(p.i);
     return <div className={`kh-card${feat ? ' is-feat' : ''}`}>
         <button type="button" className="kh-card-photo kh-card-tile" onClick={() => setSelectedId(p.i)} aria-label={p.n}>
-            <img className={ok ? 'is-ok' : ''} src={usePhotoSrc(p.c, p.i)} alt="" loading="lazy" onLoad={() => setOk(true)} ref={(el) => { if (el && el.complete && !ok) setOk(true); }} />
+            <img className={ok ? 'is-ok' : ''} src={usePhotoSrc(p.c, p.i)} alt="" loading="lazy" decoding="async" onLoad={() => setOk(true)} ref={(el) => { if (el && el.complete && !ok) setOk(true); }} />
             {feat && <span className="kh-badge-feat"><Icon name="star" size={12} /> مختار</span>}
             <span className="kh-badge-free"><Icon name="truck" size={12} /> مجاني</span>
         </button>

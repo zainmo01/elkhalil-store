@@ -202,7 +202,7 @@ p { margin: 8px 0; line-height: 1.75; }
 .kh-slide-tag {
     font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: 0;
     background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.35);
-    padding: 3px 10px; border-radius: 20px; backdrop-filter: blur(4px);
+    padding: 3px 10px; border-radius: 20px; 
 }
 .kh-slide-text strong { font-size: 21px; font-weight: 800; line-height: 1.35; }
 .kh-slide-text span { font-size: 13px; opacity: 0.9; line-height: 1.6; }
@@ -555,8 +555,7 @@ p { margin: 8px 0; line-height: 1.75; }
     width: 100%;
     max-width: 480px;
     z-index: 40;
-    background: rgba(255, 255, 255, 0.97);
-    backdrop-filter: blur(8px);
+    background: #fff;
     border-top: 1px solid var(--kh-hairline);
     display: flex;
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
@@ -1722,7 +1721,7 @@ body { background: #f4f9f7; -webkit-tap-highlight-color: transparent; letter-spa
 .kh-badge-feat, .kh-badge-free { position: absolute; top: 8px; display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 999px; line-height: 1.4; }
 .kh-badge-feat { inset-inline-start: 8px; background: linear-gradient(135deg, #f3d77a, #c9a227); color: #3d2f00; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 .kh-badge-feat svg { fill: currentColor; }
-.kh-badge-free { inset-inline-end: 8px; background: rgba(255,255,255,.92); color: #0a6b52; backdrop-filter: blur(4px); }
+.kh-badge-free { inset-inline-end: 8px; background: rgba(255,255,255,.92); color: #0a6b52;  }
 .kh-card-unit { background: transparent; padding: 0; color: #2b7f68; font-size: 11px; letter-spacing: .2px; }
 .kh-card-name { font-weight: 700; color: var(--kh-ink); line-height: 1.5; }
 .kh-card-price { font-size: 19px; letter-spacing: -.3px; }
@@ -1760,7 +1759,6 @@ body { background: #f4f9f7; -webkit-tap-highlight-color: transparent; letter-spa
 
 /* perf: no always-running animation or blur on every card */
 .kh-card-photo { animation: none !important; background: #e8f2ee; }
-.kh-card-photo:has(img:not(.is-ok)) { animation: khShimmer 1.3s linear infinite !important; background: linear-gradient(100deg, #e8f2ee 30%, #f6fbf9 50%, #e8f2ee 70%) 0 0/200% 100%; }
 .kh-badge-free { backdrop-filter: none !important; background: #fff !important; }
 .kh-card { content-visibility: auto; contain-intrinsic-size: 300px 330px; }
 .kh-card:not(:nth-child(-n+8)) { animation: none; }
@@ -1834,3 +1832,15 @@ body { background: #f4f9f7; -webkit-tap-highlight-color: transparent; letter-spa
 .kh-hd-pts { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 11px; border-radius: 16px; background: rgba(232,198,90,.16); color: #f2c94c; font-size: 12.5px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .kh-hd-pts b { font-size: 14px; }
 @media (min-width: 900px) { .kh-hd-pts { background: #fbf4dc; color: #8a6d0c; height: 36px; } }
+
+/* Scroll performance (Android WebView): no blur layers, no infinite or entrance animations on list items, lighter shadows. */
+.kh-card { animation: none !important; box-shadow: 0 1px 4px rgba(6,42,38,.09) !important; transition: none; }
+.kh-card.is-feat { box-shadow: 0 1px 5px rgba(201,162,39,.3) !important; }
+.kh-card:hover { transform: none; box-shadow: 0 1px 4px rgba(6,42,38,.09); }
+.kh-card-photo { animation: none !important; background: #eaf3ef !important; }
+.kh-card .kh-add { box-shadow: none !important; }
+.kh-slide-bg { transition: none !important; will-change: auto !important; transform: none !important; }
+.kh-rx-banner-icon svg, .kh-announce-ico { animation: none !important; }
+html, body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+a, button { touch-action: manipulation; }
+.kh-grid { contain: layout style; }
