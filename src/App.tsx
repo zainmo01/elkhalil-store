@@ -155,14 +155,15 @@ const norm = (t: string) => t.toLowerCase()
     .replace(/[\u064B-\u065F\u0640]/g, '')
     .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
-const SEARCH_INDEX = CATALOG.map((p) => ({ p, n: norm(p.n) }));
+let SEARCH_INDEX_C: { p: CatalogItem; n: string }[] | null = null;
+function searchIndex() { return SEARCH_INDEX_C ?? (SEARCH_INDEX_C = CATALOG.map((p) => ({ p, n: norm(p.n) }))); }
 
 function searchProducts(q: string, max = 8): CatalogItem[] {
     const tokens = norm(q).trim().split(/\s+/).filter(Boolean);
     if (tokens.length === 0) return [];
     const starts: CatalogItem[] = [];
     const rest: CatalogItem[] = [];
-    for (const e of SEARCH_INDEX) {
+    for (const e of searchIndex()) {
         if (!tokens.every((t) => e.n.includes(t))) continue;
         (e.n.startsWith(tokens[0]) ? starts : rest).push(e.p);
         if (starts.length >= max) break;

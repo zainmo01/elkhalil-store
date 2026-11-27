@@ -1757,3 +1757,11 @@ body { background: #f4f9f7; -webkit-tap-highlight-color: transparent; letter-spa
 .kh-qlinks a:active { transform: scale(.95); }
 .kh-greet { display: flex; align-items: baseline; gap: 6px; margin: 2px 2px 10px; font-size: 14px; color: var(--kh-muted); animation: khUp .5s ease both; }
 .kh-greet b { font-size: 19px; color: var(--kh-green-dark); font-weight: 800; }
+
+/* perf: no always-running animation or blur on every card */
+.kh-card-photo { animation: none !important; background: #e8f2ee; }
+.kh-card-photo:has(img:not(.is-ok)) { animation: khShimmer 1.3s linear infinite !important; background: linear-gradient(100deg, #e8f2ee 30%, #f6fbf9 50%, #e8f2ee 70%) 0 0/200% 100%; }
+.kh-badge-free { backdrop-filter: none !important; background: #fff !important; }
+.kh-card { content-visibility: auto; contain-intrinsic-size: 300px 330px; }
+.kh-card:not(:nth-child(-n+8)) { animation: none; }
+.kh-slide-bg { transition: transform 7s linear; will-change: transform; }
