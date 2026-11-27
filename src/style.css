@@ -1555,3 +1555,9 @@ button, input, textarea, select { font-family: inherit; }
 .kh-announce-ico { flex: none; }
 .kh-add-form .kh-drv-row { flex-wrap: nowrap; }
 .kh-add-form .kh-drv-row > button { flex: 1; white-space: nowrap; width: auto; margin: 0; padding: 12px 10px; }
+
+.kh-passwrap { position: relative; display: block; width: 100%; }
+.kh-passwrap input { width: 100%; box-sizing: border-box; padding-inline-start: 46px !important; }
+.kh-eye { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border: 0; background: transparent; color: #5b6f69; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.kh-eye:hover { background: #e9f3ef; color: #05483c; }
+.kh-eye[aria-pressed="true"] { color: #0a6b52; }

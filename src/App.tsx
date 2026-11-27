@@ -95,6 +95,8 @@ const PATHS: Record<string, React.ReactNode> = {
     cart: <><circle cx="9" cy="20" r="1.6" /><circle cx="17" cy="20" r="1.6" /><path d="M3 4h2l2.4 11h9.9l2-8H6" /></>,
     bell: <><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" /></>,
+    eye: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
+    eyeoff: <><path d="M3 3l18 18" /><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.5 6.6C3.7 8.3 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>,
     search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
     home: <><path d="M4 11 12 4l8 7" /><path d="M6 10v10h12V10" /></>,
     grid: <><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></>,
@@ -110,6 +112,14 @@ const PATHS: Record<string, React.ReactNode> = {
     check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
     truck: <><rect x="2" y="7" width="12" height="9" rx="1" /><path d="M14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="1.8" /><circle cx="17" cy="18" r="1.8" /></>,
 };
+
+function PassInput({ value, onChange, autoComplete }: { value: string; onChange: (v: string) => void; autoComplete: string }) {
+    const [show, setShow] = useState(false);
+    return <span className="kh-passwrap">
+        <input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} autoComplete={autoComplete} dir="ltr" style={{ textAlign: 'right' }} />
+        <button type="button" className="kh-eye" aria-label={show ? 'إخفاء الباسورد' : 'إظهار الباسورد'} aria-pressed={show} onClick={() => setShow((v) => !v)}><Icon name={show ? 'eyeoff' : 'eye'} size={20} /></button>
+    </span>;
+}
 
 function Icon({ name, size = 22 }: { name: keyof typeof PATHS; size?: number }) {
     return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{PATHS[name]}</svg>;
@@ -944,11 +954,11 @@ function LoginPage({ onLogin, onCancel }: { onLogin: (phone: string) => void; on
         </label>
         {step !== 'phone' && <label className="kh-field">
             <span>الباسورد</span>
-            <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={reg ? 'new-password' : 'current-password'} dir="ltr" style={{ textAlign: 'right' }} />
+            <PassInput value={pass} onChange={setPass} autoComplete={reg ? 'new-password' : 'current-password'} />
         </label>}
         {reg && <label className="kh-field">
             <span>تأكيد الباسورد</span>
-            <input type="password" value={pass2} onChange={(e) => setPass2(e.target.value)} autoComplete="new-password" dir="ltr" style={{ textAlign: 'right' }} />
+            <PassInput value={pass2} onChange={setPass2} autoComplete="new-password" />
         </label>}
         <button type="button" className="kh-confirm kh-confirm-big" disabled={busy || !phoneReady || (step !== 'phone' && !passOk)} onClick={next}>
             {step === 'phone' ? 'متابعة' : reg ? 'إنشاء الحساب' : 'دخول'}
@@ -1243,7 +1253,7 @@ function AdminGate({ children }: { children: React.ReactNode }) {
             <Paragraph>اكتب مفتاح الأدمن مرة واحدة، وبيفضل محفوظ على الجهاز ده.</Paragraph>
             <label className="kh-field">
                 <span>المفتاح</span>
-                <input value={draft} onChange={(e) => setDraft(e.target.value)} type="password" dir="ltr" style={{ textAlign: 'right' }} />
+                <PassInput value={draft} onChange={setDraft} autoComplete="off" />
             </label>
             <button type="button" className="kh-confirm kh-confirm-big" disabled={draft.trim() === ''} onClick={() => setKey(draft.trim())}>حفظ ودخول</button>
             <Link className="kh-biglink" to="/">رجوع للمتجر</Link>
