@@ -1,0 +1,1 @@
+# One product id per line to EXCLUDE from the moves (keeps its original category). Then run: python3 scripts/apply_categories.py
