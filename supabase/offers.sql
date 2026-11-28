@@ -7,7 +7,7 @@ declare expected text;
 begin
   select v into expected from public.admin_config where k = 'admin_key';
   if expected is null or p_key is null or p_key <> expected then raise exception 'unauthorized'; end if;
-  if length(coalesce(p_val,'')) > 8000 then raise exception 'too long'; end if;
+  if length(coalesce(p_val,'')) > 2000000 then raise exception 'too long'; end if;
   if jsonb_typeof(coalesce(p_val,'[]')::jsonb) <> 'array' then raise exception 'bad value'; end if;
   insert into public.admin_config (k, v) values ('offers', coalesce(p_val,'[]'))
   on conflict (k) do update set v = excluded.v;

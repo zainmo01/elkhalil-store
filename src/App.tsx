@@ -708,16 +708,19 @@ function ProductCard({ p }: { p: CatalogItem }) {
     const { setSelectedId } = useShop();
     const [ok, setOk] = useState(false);
     const feat = FEAT_SET.s.has(p.i);
+    useOfferVer();
+    const dp = discPct(p.i), was = OFFER_ORIG.get(p.i);
     return <div className={`kh-card${feat ? ' is-feat' : ''}`}>
         <button type="button" className="kh-card-photo kh-card-tile" onClick={() => setSelectedId(p.i)} aria-label={p.n}>
             <img className={ok ? 'is-ok' : ''} src={usePhotoSrc(p.c, p.i)} alt="" loading="lazy" decoding="async" onLoad={() => setOk(true)} ref={(el) => { if (el && el.complete && !ok) setOk(true); }} />
             {feat && <span className="kh-badge-feat"><Icon name="star" size={12} /> مختار</span>}
-            <span className="kh-badge-free"><Icon name="truck" size={12} /> مجاني</span>
+            {dp >= 1 && <span className="kh-disc">خصم {dp}%</span>}
+            <span className={`kh-badge-free${dp >= 1 ? ' is-low' : ''}`}><Icon name="truck" size={12} /> مجاني</span>
         </button>
         <div className="kh-card-body">
             <span className="kh-card-unit">{CAT_NAMES[p.c]}</span>
             <button type="button" className="kh-card-name kh-name-btn" onClick={() => setSelectedId(p.i)}>{p.n}</button>
-            <span className="kh-card-price"><bdi>{fmtPrice(p.p)}</bdi> <small>ج.م</small></span>
+            <span className="kh-card-price"><bdi>{fmtPrice(p.p)}</bdi> <small>ج.م</small>{dp >= 1 && was !== undefined && <s className="kh-was"><bdi>{fmtPrice(was)}</bdi></s>}</span>
             <AddButton id={p.i} />
         </div>
     </div>;
@@ -870,15 +873,29 @@ const GRID_PAGE = 48;
 const OFFER_KEY = 'kh_offers';
 const OFFER_ORIG = new Map<string, number>();
 const OFFER_NOW: { list: Offer[] } = { list: (() => { try { const v = JSON.parse(localStorage.getItem(OFFER_KEY) ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; } })() };
+const OFFER_BASE = new Map<string, number>();
+const OFFER_SUBS = new Set<() => void>();
+function useOfferVer(): number {
+    const [v, setV] = useState(0);
+    React.useEffect(() => { const f = () => setV((x) => x + 1); OFFER_SUBS.add(f); return () => { OFFER_SUBS.delete(f); }; }, []);
+    return v;
+}
+function discPct(id: string): number {
+    const it = BY_ID.get(id); const o = OFFER_ORIG.get(id);
+    if (!it || o === undefined || !(o > it.p)) return 0;
+    return Math.round(((o - it.p) / o) * 100);
+}
 function applyOffers(list: Offer[]) {
     const on = new Set(list.map((o) => o.i));
-    for (const [id, orig] of OFFER_ORIG) if (!on.has(id)) { const it = BY_ID.get(id); if (it) it.p = orig; OFFER_ORIG.delete(id); }
+    for (const [id] of OFFER_ORIG) if (!on.has(id)) { const it = BY_ID.get(id); const b = OFFER_BASE.get(id); if (it && b !== undefined) it.p = b; OFFER_ORIG.delete(id); OFFER_BASE.delete(id); }
     for (const o of list) {
         let it = BY_ID.get(o.i);
-        if (!it) { it = { i: o.i, n: o.n, p: o.o, c: o.c }; BY_ID.set(o.i, it); }
-        if (!OFFER_ORIG.has(o.i)) OFFER_ORIG.set(o.i, it.p === o.p ? o.o : it.p);
+        if (!it) { if (!o.n) continue; it = { i: o.i, n: o.n, p: o.o, c: o.c }; BY_ID.set(o.i, it); }
+        if (!OFFER_BASE.has(o.i)) OFFER_BASE.set(o.i, it.p);
+        OFFER_ORIG.set(o.i, o.o);
         it.p = o.p;
     }
+    OFFER_SUBS.forEach((f) => f());
 }
 catalogHooks.push(() => applyOffers(OFFER_NOW.list));
 function useOffers(): [Offer[], (l: Offer[]) => void] {
@@ -896,15 +913,18 @@ function useOffers(): [Offer[], (l: Offer[]) => void] {
     return [list, put];
 }
 
+const discPctOf = (o: Offer) => Math.round(((o.o - o.p) / o.o) * 100);
+
 function OffersBand() {
     const { setSelectedId } = useShop();
     const [offers] = useOffers();
     useCatalogVersion();
-    if (offers.length === 0) return null;
+    const shown = offers.filter((o) => o.n).slice(0, 12);
+    if (shown.length === 0) return null;
     return <section className="kh-ofr" aria-label="عروض اليوم">
         <div className="kh-off-head"><h2>عروض اليوم <em>· الأكثر توفيرًا</em></h2><span>أسعار لفترة محدودة</span></div>
         <div className="kh-off-row">
-            {offers.map((o) => {
+            {shown.map((o) => {
                 const off = Math.round(((o.o - o.p) / o.o) * 100);
                 return <div key={o.i} className="kh-off-card">
                     {off >= 1 && <span className="kh-off-badge">وفر {off}%</span>}
@@ -925,32 +945,37 @@ function AdminOffers() {
     const [state, setState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
     const [draft, setDraft] = useState<Record<string, string>>({});
     const res = text.trim() === '' ? [] : searchProducts(text, 8);
-    const save = (next: Offer[]) => {
+    const save = (next0: Offer[]) => {
+        const next = next0.map((o, k) => { const it = BY_ID.get(o.i); return k < 12 ? { ...o, n: o.n || it?.n || '', c: o.n ? o.c : (it?.c ?? o.c) } : { ...o, n: '', c: 0 }; });
         setOffers(next);
         setState('busy');
-        adminCall(key, 'offers-set', { list: next })
+        adminCall(key, 'offers-set', { list: next.map((o, k) => k < 12 ? o : { i: o.i, p: o.p, o: o.o }) })
             .then(() => { setState('ok'); window.setTimeout(() => setState('idle'), 1800); })
             .catch(() => setState('err'));
     };
     const add = (p: CatalogItem) => {
-        if (offers.length >= 12 || offers.some((o) => o.i === p.i)) return;
-        const price = Math.max(0.5, Math.floor(p.p * 0.9 * 2) / 2);
-        save([...offers, { i: p.i, n: p.n, c: p.c, p: price, o: p.p }]);
+        if (offers.some((o) => o.i === p.i)) return;
+        const base = OFFER_BASE.get(p.i) ?? p.p;
+        const price = Math.max(0.5, Math.floor(base * 0.9 * 2) / 2);
+        save([{ i: p.i, n: p.n, c: p.c, p: price, o: base }, ...offers]);
     };
-    const setPrice = (o: Offer) => {
-        const v = Number((draft[o.i] ?? '').replace(',', '.'));
-        setDraft((d) => { const n = { ...d }; delete n[o.i]; return n; });
-        if (!isFinite(v) || v <= 0 || v >= o.o) { setState('err'); return; }
-        save(offers.map((x) => x.i === o.i ? { ...x, p: v } : x));
+    const setPrice = (o: Offer, which: 'p' | 'o') => {
+        const dk = which + o.i;
+        const v = Number((draft[dk] ?? '').replace(',', '.'));
+        setDraft((d) => { const n = { ...d }; delete n[dk]; return n; });
+        const np = which === 'p' ? v : o.p, no = which === 'o' ? v : o.o;
+        if (!isFinite(v) || v <= 0 || np >= no) { setState('err'); return; }
+        save(offers.map((x) => x.i === o.i ? { ...x, p: np, o: no } : x));
     };
+    const [more, setMore] = useState(40);
     return <>
         <AdminTabs active="offers" />
         <section className="kh-ftp">
             <header className="kh-ftp-head">
                 <span className="kh-ftp-ico"><Icon name="star" size={22} /></span>
                 <div>
-                    <h2>عروض اليوم</h2>
-                    <p>اختار المنتج وحط سعر العرض. بيظهر في الرئيسية تحت الأقسام، والعميل بيدفع سعر العرض. لو مفيش عروض القسم بيختفي.</p>
+                    <h2>الخصومات والعروض</h2>
+                    <p>اختار المنتج وحط السعر قبل الخصم والسعر بعد الخصم. نسبة الخصم بتظهر لوحدها على المنتج في كل مكان، والعميل بيدفع السعر بعد الخصم. أول 12 خصم بيظهروا في الرئيسية في «عروض اليوم».</p>
                 </div>
             </header>
             <div className="kh-ftp-card">
@@ -970,22 +995,24 @@ function AdminOffers() {
                 </ul>}
             </div>
             <div className="kh-ftp-sub">
-                <strong>العروض <b>{offers.length.toLocaleString('en-US')}</b> / 12</strong>
-                <span className="kh-ft-state">{state === 'busy' ? 'جاري الحفظ…' : state === 'ok' ? '✓ تم الحفظ' : state === 'err' ? 'تعذر الحفظ، السعر لازم يكون أقل من الأصلي' : ''}</span>
+                <strong>الخصومات <b>{offers.length.toLocaleString('en-US')}</b></strong>
+                <span className="kh-ft-state">{state === 'busy' ? 'جاري الحفظ…' : state === 'ok' ? '✓ تم الحفظ' : state === 'err' ? 'تعذر الحفظ، السعر بعد الخصم لازم يكون أقل من قبل الخصم' : ''}</span>
             </div>
             {offers.length === 0
                 ? <div className="kh-ftp-empty"><Icon name="star" size={28} /><span>مفيش عروض. قسم العروض مخفي في الرئيسية.</span></div>
                 : <ol className="kh-ft-list">
-                    {offers.map((o, i) => <li key={o.i}>
+                    {offers.slice(0, more).map((o, i) => <li key={o.i}>
                         <span className="kh-ft-n">{(i + 1).toLocaleString('en-US')}</span>
                         <span className="kh-ft-img"><ProdImg c={o.c} i={o.i} loading="lazy" /></span>
-                        <span className="kh-ft-name">{o.n}<small>السعر الأصلي {fmtPrice(o.o)} ج.م</small></span>
+                        <span className="kh-ft-name">{o.n}<small>خصم {discPctOf(o)}%</small></span>
                         <span className="kh-ft-ctl">
-                            <input className="kh-off-in" inputMode="decimal" aria-label="سعر العرض" value={draft[o.i] ?? String(o.p)} onChange={(e) => setDraft((d) => ({ ...d, [o.i]: e.target.value }))} onBlur={() => { if (draft[o.i] !== undefined && draft[o.i] !== String(o.p)) setPrice(o); }} />
+                            <label className="kh-off-lb">قبل<input className="kh-off-in" inputMode="decimal" aria-label="السعر قبل الخصم" value={draft['o' + o.i] ?? String(o.o)} onChange={(e) => setDraft((d) => ({ ...d, ['o' + o.i]: e.target.value }))} onBlur={() => { if (draft['o' + o.i] !== undefined && draft['o' + o.i] !== String(o.o)) setPrice(o, 'o'); }} /></label>
+                            <label className="kh-off-lb">بعد<input className="kh-off-in" inputMode="decimal" aria-label="السعر بعد الخصم" value={draft['p' + o.i] ?? String(o.p)} onChange={(e) => setDraft((d) => ({ ...d, ['p' + o.i]: e.target.value }))} onBlur={() => { if (draft['p' + o.i] !== undefined && draft['p' + o.i] !== String(o.p)) setPrice(o, 'p'); }} /></label>
                             <button type="button" className="kh-ft-btn kh-ft-del" aria-label="حذف" onClick={() => save(offers.filter((x) => x.i !== o.i))}>✕</button>
                         </span>
                     </li>)}
                 </ol>}
+            {offers.length > more && <button type="button" className="kh-biglink" onClick={() => setMore((m) => m + 60)}>عرض المزيد ({(offers.length - more).toLocaleString('en-US')})</button>}
         </section>
     </>;
 }
@@ -1282,6 +1309,7 @@ function ProductPage({ id }: { id: string }) {
     const catReady = isCatalogReady();
     const related = useMemo(() => (product ? relatedFor(product) : []), [product, catReady]);
     useCatalogVersion();
+    useOfferVer();
     if (!product && !isCatalogReady()) return <div className="kh-empty"><Paragraph>جارٍ التحميل…</Paragraph></div>;
     if (!product) {
         return <div className="kh-empty">
@@ -1295,6 +1323,7 @@ function ProductPage({ id }: { id: string }) {
         <ScrollTop key={id} />
         <div className="kh-pdp-stage">
             <span className="kh-pdp-badge">{CAT_NAMES[product.c]}</span>
+            {discPct(product.i) >= 1 && <span className="kh-disc kh-disc-lg">خصم {discPct(product.i)}%</span>}
             <div className="kh-pdp-photo"><ProdImg c={product.c} i={product.i} alt={product.n} /></div>
         </div>
         {adminKeyPdp !== '' && <PhotoBtn id={product.i} />}
@@ -1304,7 +1333,7 @@ function ProductPage({ id }: { id: string }) {
             <strong>{avg.toFixed(1)}</strong>
             <span>({reviews.length.toLocaleString('en-US')} تقييمات)</span>
         </div>
-        <p className="kh-detail-price">{egp(product.p)}</p>
+        <p className="kh-detail-price">{egp(product.p)}{discPct(product.i) >= 1 && <><s className="kh-was kh-was-lg">{egp(OFFER_ORIG.get(product.i) ?? product.p)}</s><em className="kh-save">وفرت {egp((OFFER_ORIG.get(product.i) ?? product.p) - product.p)}</em></>}</p>
         <div className="kh-pdp-perks">
             <span><Icon name="truck" size={16} /> توصيل مجاني</span>
             <span><Icon name="shield" size={16} /> متاح للطلب</span>
@@ -2076,7 +2105,7 @@ function applyOverrides(list: { id: string; price: number }[]): boolean {
     let changed = false;
     for (const o of list) {
         const it = BY_ID.get(o.id);
-        if (it && OFFER_ORIG.has(o.id)) { OFFER_ORIG.set(o.id, o.price); continue; }
+        if (it && OFFER_ORIG.has(o.id)) { OFFER_BASE.set(o.id, o.price); continue; }
         if (it && it.p !== o.price) { it.p = o.price; changed = true; }
     }
     return changed;
