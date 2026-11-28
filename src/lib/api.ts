@@ -156,6 +156,15 @@ export async function adminCall<T = unknown>(key: string, action: string, payloa
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
         return r.data as T;
     }
+    if (action === 'stock-set' || action === 'stock-hist' || action === 'stock-revert') {
+        const r = action === 'stock-set'
+            ? await supabase.rpc('admin_stock_set', { p_key: key, p_val: JSON.stringify(payload.rows ?? []), p_force: payload.force === true })
+            : action === 'stock-hist'
+                ? await supabase.rpc('admin_stock_hist', { p_key: key })
+                : await supabase.rpc('admin_stock_revert', { p_key: key, p_k: String(payload.k) });
+        if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
+        return r.data as T;
+    }
     if (action === 'offers-set') {
         const r = await supabase.rpc('admin_offers_set', { p_key: key, p_val: JSON.stringify(payload.list ?? []) });
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);

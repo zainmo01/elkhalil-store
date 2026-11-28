@@ -33,6 +33,8 @@ import c4_2 from './photos/cat/c4_2.webp';
 // catalog.ts holds customer-safe fields only: id, name, sell price, category.
 import { CATALOG, BY_ID, inStock, useCatalogVersion, isCatalogReady, catalogHooks, live, refreshCatalog } from './catalog';
 import type { CatalogItem } from './catalog';
+import { STOCK, getStock, parseReport, guessCat } from './stock';
+import type { StockRow } from './stock';
 
 const CAT_NAMES = ['الأدوية', 'العناية', 'الفيتامينات', 'الأم والطفل', 'أجهزة طبية'];
 const CATEGORIES = ['الكل', ...CAT_NAMES];
@@ -900,6 +902,24 @@ function applyOffers(list: Offer[]) {
     }
     OFFER_SUBS.forEach((f) => f());
 }
+// ---- Stock overlay (live from the database): availability and sell price. Runs before offers so an offer price wins. ----
+let STOCK_SIG = '';
+function applyStockRows(rows: StockRow[] | null) {
+    if (!rows || rows.length === 0) return;
+    const ids = new Set<string>();
+    for (const r of rows) {
+        const id = r[0]; ids.add(id);
+        let it = BY_ID.get(id);
+        if (!it) { if (r.length === 4) { it = { i: id, n: r[2], p: r[1], c: r[3], a: 1 }; BY_ID.set(id, it); CATALOG.push(it); } continue; }
+        it.a = 1;
+        if (OFFER_ORIG.has(id)) OFFER_BASE.set(id, r[1]); else if (it.p !== r[1]) it.p = r[1];
+    }
+    if (STOCK_SIG !== `${rows.length}:${CATALOG.length}`) {
+        STOCK_SIG = `${rows.length}:${CATALOG.length}`;
+        for (const it of CATALOG) if (it.a === 1 && !ids.has(it.i)) delete it.a;
+    }
+}
+catalogHooks.unshift(() => applyStockRows(STOCK.rows));
 catalogHooks.push(() => applyOffers(OFFER_NOW.list));
 function useOffers(): [Offer[], (l: Offer[]) => void] {
     const [list, setList] = useState<Offer[]>(OFFER_NOW.list);
@@ -1020,6 +1040,117 @@ function AdminOffers() {
     </>;
 }
 
+type StockPlan = { rows: StockRow[]; total: number; matched: number; fresh: { code: string; name: string }[]; priceChanges: number; toUnavail: number; toAvail: number; blockMsg: string; warnMsg: string };
+function AdminStock() {
+    const [key] = useAdminKey();
+    const catVer = useCatalogVersion();
+    const [info, setInfo] = useState<{ meta: { t: string; n: number } | null; alert: { t: string; reason: string } | null; hist: { k: string; n: number }[] } | null>(null);
+    const [plan, setPlan] = useState<StockPlan | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState('');
+    const [err, setErr] = useState('');
+    const [force, setForce] = useState(false);
+    const loadInfo = () => {
+        adminCall<string>(key, 'stock-hist').then((t) => { const j = JSON.parse(t); setInfo({ meta: j.meta ? JSON.parse(j.meta) : null, alert: j.alert ? JSON.parse(j.alert) : null, hist: j.hist ?? [] }); }).catch(() => {});
+    };
+    React.useEffect(() => { live.want = true; if (!isCatalogReady()) refreshCatalog(); loadInfo(); return () => { live.want = false; }; }, []);
+    const fmtT = (t: string) => { try { return new Date(t).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }); } catch { return t; } };
+    const onFile = async (f: File | null | undefined) => {
+        if (!f) return;
+        setErr(''); setMsg(''); setPlan(null); setForce(false); setBusy(true);
+        try {
+            if (!isCatalogReady()) throw new Error('الأصناف لسه بتتحمل، استنى ثواني وجرب تاني');
+            const rep = await parseReport(await f.arrayBuffer());
+            const cur = STOCK.rows ? new Map(STOCK.rows.map((r) => [r[0], r[1]])) : null;
+            const rows: StockRow[] = [];
+            const fresh: { code: string; name: string }[] = [];
+            let matched = 0, priceChanges = 0;
+            const inFile = new Set<string>();
+            for (const r of rep) {
+                inFile.add(r.code);
+                const it = BY_ID.get(r.code);
+                if (it) { matched++; const was = cur?.get(r.code) ?? (OFFER_ORIG.has(r.code) ? OFFER_BASE.get(r.code) : it.p); if (was !== r.sell) priceChanges++; rows.push([r.code, r.sell]); }
+                else { fresh.push({ code: r.code, name: r.name }); rows.push([r.code, r.sell, r.name, guessCat(r.name)]); }
+            }
+            let toUnavail = 0, toAvail = 0;
+            for (const it of CATALOG) { if (it.a === 1 && !inFile.has(it.i)) toUnavail++; }
+            toAvail = rep.filter((r) => BY_ID.get(r.code)?.a !== 1).length;
+            const prev = STOCK.rows ? STOCK.rows.length : CATALOG.filter((x) => x.a === 1).length;
+            let blockMsg = '', warnMsg = '';
+            if (rep.length < 500) blockMsg = `الملف فيه ${rep.length} صنف بس، ده قليل جداً. مش هيتطبق.`;
+            else if (prev > 0 && (rep.length < prev * 0.8 || rep.length > prev * 1.5)) warnMsg = `عدد الأصناف اتغير كتير (كان ${prev.toLocaleString('en-US')} وبقى ${rep.length.toLocaleString('en-US')}). اتأكد إن ده الملف الصح قبل ما تطبق.`;
+            setPlan({ rows, total: rep.length, matched, fresh, priceChanges, toUnavail, toAvail, blockMsg, warnMsg });
+        } catch (e) { setErr((e as Error).message || 'تعذر قراءة الملف'); }
+        setBusy(false);
+    };
+    const apply = () => {
+        if (!plan || plan.blockMsg) return;
+        setBusy(true); setErr(''); setMsg('');
+        adminCall<string>(key, 'stock-set', { rows: plan.rows, force })
+            .then((res) => { if (typeof res === 'string' && res.startsWith('rejected')) { setErr('الملف اترفض: ' + res.replace(/^rejected: ?/, '') + '. المتجر لسه زي ما هو، وتم تسجيل تنبيه.'); loadInfo(); return; } STOCK.rows = plan.rows; try { localStorage.setItem('kh_stock', JSON.stringify(plan.rows)); } catch { /* ignore */ } STOCK_SIG = ''; refreshCatalog(); setMsg(`تم التطبيق: ${plan.total.toLocaleString('en-US')} صنف متاح.`); setPlan(null); loadInfo(); })
+            .catch((e: Error) => setErr(/rejected/i.test(e.message) ? 'الملف اترفض: ' + e.message.replace(/^.*rejected: ?/i, '') + '. المتجر لسه زي ما هو.' : e.message === 'unauthorized' ? 'مفتاح الأدمن غير صحيح' : 'تعذر الحفظ'))
+            .finally(() => { setBusy(false); loadInfo(); });
+    };
+    const revert = (k: string) => {
+        setBusy(true); setErr(''); setMsg('');
+        adminCall<string>(key, 'stock-revert', { k })
+            .then(() => getStock().then(() => { STOCK_SIG = ''; refreshCatalog(); setMsg('رجّعنا النسخة القديمة.'); loadInfo(); }))
+            .catch(() => setErr('تعذر الرجوع'))
+            .finally(() => setBusy(false));
+    };
+    const nAvail = CATALOG.reduce((n, x) => n + (x.a === 1 ? 1 : 0), 0);
+    return <>
+        <AdminTabs active="stock" />
+        <section className="kh-ftp">
+            <header className="kh-ftp-head">
+                <span className="kh-ftp-ico"><Icon name="shield" size={22} /></span>
+                <div>
+                    <h2>المخزون</h2>
+                    <p>ارفع تقرير الأصناف من e-Stock. الأصناف اللي في الملف بتبقى متاحة بسعرها، وأي صنف مش فيه بيبقى غير متاح. بتشوف الملخص الأول وبعدين تأكد التطبيق.</p>
+                </div>
+            </header>
+            <div className="kh-ftp-card">
+                <div className="kh-stk-now">
+                    <strong>المتاح دلوقتي: <b>{nAvail.toLocaleString('en-US')}</b> صنف</strong>
+                    {info?.meta && <span>آخر تحديث: {fmtT(info.meta.t)}</span>}
+                    {info?.alert && <span className="kh-stk-bad">آخر ملف اترفض ({info.alert.reason}) في {fmtT(info.alert.t)}</span>}
+                </div>
+                <label className="kh-confirm kh-stk-up">
+                    {busy ? 'استنى…' : 'اختار ملف التقرير (.xls)'}
+                    <input type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void onFile(f); }} />
+                </label>
+                {err && <p className="kh-stk-bad" role="alert">{err}</p>}
+                {msg && <p className="kh-stk-ok" role="status">✓ {msg}</p>}
+                {plan && <div className="kh-stk-plan">
+                    <ul>
+                        <li>أصناف في الملف: <b>{plan.total.toLocaleString('en-US')}</b></li>
+                        <li>موجودة في المتجر: <b>{plan.matched.toLocaleString('en-US')}</b>، أسعارها اتغيرت: <b>{plan.priceChanges.toLocaleString('en-US')}</b></li>
+                        <li>هتبقى غير متاحة (مش في الملف): <b>{plan.toUnavail.toLocaleString('en-US')}</b></li>
+                        <li>هتبقى متاحة بعد ما كانت غير متاحة: <b>{plan.toAvail.toLocaleString('en-US')}</b></li>
+                        <li>أصناف جديدة مش في المتجر: <b>{plan.fresh.length.toLocaleString('en-US')}</b>{plan.fresh.length > 0 && <small> (هتتضاف، مثال: {plan.fresh.slice(0, 3).map((x) => x.name).join('، ')})</small>}</li>
+                    </ul>
+                    {plan.blockMsg && <p className="kh-stk-bad">{plan.blockMsg}</p>}
+                    {plan.warnMsg && <><p className="kh-stk-bad">{plan.warnMsg}</p><label className="kh-stk-force"><input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} /> أيوه، ده الملف الصح، طبّق برضو</label></>}
+                    <div className="kh-stk-btns">
+                        <button type="button" className="kh-confirm" disabled={busy || !!plan.blockMsg || (!!plan.warnMsg && !force)} onClick={apply}>تأكيد وتطبيق على المتجر</button>
+                        <button type="button" className="kh-ft-btn" onClick={() => setPlan(null)}>إلغاء</button>
+                    </div>
+                </div>}
+            </div>
+            {info && info.hist.length > 0 && <>
+                <div className="kh-ftp-sub"><strong>النسخ السابقة (آخر {info.hist.length})</strong></div>
+                <ol className="kh-ft-list">
+                    {info.hist.map((h) => <li key={h.k}>
+                        <span className="kh-ft-name">{fmtT(new Date(Number(h.k) * 1000).toISOString())}<small>{h.n.toLocaleString('en-US')} صنف متاح</small></span>
+                        <span className="kh-ft-ctl"><button type="button" className="kh-ft-btn" disabled={busy} onClick={() => revert(h.k)}>رجوع للنسخة دي</button></span>
+                    </li>)}
+                </ol>
+            </>}
+        </section>
+        <span hidden>{catVer}</span>
+    </>;
+}
+
 const FEAT_KEY = 'kh_featured';
 function readFeat(): string[] { try { const v = JSON.parse(localStorage.getItem(FEAT_KEY) ?? '[]'); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } }
 function useFeatured(): [string[], (ids: string[]) => void] {
@@ -1049,7 +1180,7 @@ function Shop() {
     const base = useMemo(() => {
         let b: CatalogItem[] = cat === 'الكل' ? CATALOG : CATALOG.filter((p) => p.c === ci);
         if (q !== '') b = b.filter((p) => p.n.toLowerCase().includes(q));
-        return b;
+        return [...b.filter((p) => p.a === 1), ...b.filter((p) => p.a !== 1)];
     }, [cat, q, catVer]);
     // Admin-curated picks first, in the admin's order; the rest keeps today's order. Only the visible page is built.
     const picks0 = q === '' ? featIds.map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p && (cat === 'الكل' || p.c === ci)) : [];
@@ -1799,6 +1930,7 @@ function AdminTabs({ active }: { active: string }) {
         { to: '/admin/products', label: 'المنتجات', key: 'products' },
         { to: '/admin/featured', label: 'المميزة', key: 'featured' },
         { to: '/admin/offers', label: 'العروض', key: 'offers' },
+        { to: '/admin/stock', label: 'المخزون', key: 'stock' },
         { to: '/admin/photos', label: 'الصور', key: 'photos' },
         { to: '/admin/rx', label: 'الروشتات', key: 'rx' },
         { to: '/admin/notify', label: 'الإشعارات', key: 'notify' },
@@ -2131,6 +2263,14 @@ function writeSession(p: string | null) {
 export function App() {
     const { pathname } = useLocation();
     const [, setPriceTick] = useState(0);
+    React.useEffect(() => {
+        const run = () => { getStock().then((r) => { if (r) { STOCK_SIG = ''; refreshCatalog(); } }).catch(() => {}); };
+        run();
+        const onVis = () => { if (document.visibilityState === 'visible') run(); };
+        document.addEventListener('visibilitychange', onVis);
+        const t = window.setInterval(run, 600000);
+        return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', onVis); };
+    }, []);
     React.useEffect(() => { refreshPhotoIds(); const t = window.setInterval(refreshPhotoIds, 300000); return () => window.clearInterval(t); }, []);
     React.useEffect(() => {
         const run = () => { loadPriceOverrides().then((l) => { if (applyOverrides(l)) setPriceTick((t) => t + 1); }).catch(() => {}); };
@@ -2258,6 +2398,7 @@ export function App() {
                         <Route path="/admin/loyalty" element={<AdminGate><AdminLoyalty /></AdminGate>} />
                         <Route path="/admin/featured" element={<AdminGate><AdminFeatured /></AdminGate>} />
                         <Route path="/admin/offers" element={<AdminGate><AdminOffers /></AdminGate>} />
+                        <Route path="/admin/stock" element={<AdminGate><AdminStock /></AdminGate>} />
                         <Route path="/admin/photos" element={<AdminGate><AdminPhotos /></AdminGate>} />
                         <Route path="/admin/notify" element={<AdminGate><AdminNotify /></AdminGate>} />
                         <Route path="/notifications" element={<NotificationsPage />} />

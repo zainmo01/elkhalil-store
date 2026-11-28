@@ -1918,3 +1918,15 @@ a, button { touch-action: manipulation; }
 .kh-card.is-off .kh-card-price, .kh-card.is-off .kh-card-name { opacity: .6; }
 .kh-card.is-off .kh-badge-free { display: none; }
 .kh-add.kh-add-off, .kh-confirm:disabled { background: #e3e8ee !important; color: #6b7a8c !important; box-shadow: none !important; cursor: not-allowed; }
+
+/* stock admin */
+.kh-stk-now { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 14px; color: #0B3C73; }
+.kh-stk-now span { font-size: 12px; color: var(--kh-muted); }
+.kh-stk-up { display: block; text-align: center; cursor: pointer; }
+.kh-stk-bad { color: #c0262d; font-size: 13px; font-weight: 700; margin: 8px 0 0; }
+.kh-stk-ok { color: #0a8f4d; font-size: 14px; font-weight: 800; margin: 8px 0 0; }
+.kh-stk-plan { margin-top: 12px; background: #f3f7fc; border-radius: 12px; padding: 12px 14px; }
+.kh-stk-plan ul { margin: 0 0 8px; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; }
+.kh-stk-plan small { color: var(--kh-muted); }
+.kh-stk-force { display: flex; gap: 8px; align-items: center; font-size: 13px; margin: 8px 0; }
+.kh-stk-btns { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
