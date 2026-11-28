@@ -156,6 +156,11 @@ export async function adminCall<T = unknown>(key: string, action: string, payloa
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
         return r.data as T;
     }
+    if (action === 'offers-set') {
+        const r = await supabase.rpc('admin_offers_set', { p_key: key, p_val: JSON.stringify(payload.list ?? []) });
+        if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
+        return r.data as T;
+    }
     if (action === 'featured-set') {
         const r = await supabase.rpc('admin_featured_set', { p_key: key, p_ids: (payload.ids as string[]).join(',') });
         if (r.error) throw new Error(/unauthorized/i.test(r.error.message) ? 'unauthorized' : r.error.message);
@@ -262,6 +267,17 @@ export async function getAnnouncement(): Promise<string | null> {
     const { data, error } = await supabase.rpc('announcement_get');
     if (error) return null;
     return typeof data === 'string' ? data : '';
+}
+
+export type Offer = { i: string; n: string; c: number; p: number; o: number };
+export async function getOffers(): Promise<Offer[] | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc('offers_get');
+    if (error) return null;
+    try {
+        const v = JSON.parse(typeof data === 'string' && data !== '' ? data : '[]');
+        return Array.isArray(v) ? v.filter((x) => x && typeof x.i === 'string' && Number(x.p) > 0 && Number(x.o) > Number(x.p)).map((x) => ({ i: x.i, n: String(x.n ?? ''), c: Number(x.c) || 0, p: Number(x.p), o: Number(x.o) })) : [];
+    } catch { return []; }
 }
 
 export async function getFeatured(): Promise<string[] | null> {

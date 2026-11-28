@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { getPhotoIds, getPhotos, getAnnouncement, getFeatured, myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
+import { getOffers, type Offer, getPhotoIds, getPhotos, getAnnouncement, getFeatured, myOrders, accountStatus, accountRegister, accountLogin, SUPABASE_READY, placeOrder, submitRx, adminCall, fmtTime, loadPriceOverrides, loadNotifications, loadCart, saveCart, loyaltyInfo, placeOrder2 } from './lib/api';
 import type { OrderRow, RxRow, NotifRow, LoyaltyInfo } from './lib/api';
 
 function Paragraph({ children }: { children: React.ReactNode }) {
@@ -866,6 +866,130 @@ function RxBanner() {
 
 const GRID_PAGE = 48;
 
+// ---- Offers: admin-set offer prices. The offer price replaces the catalog price in memory, so cart and orders use it. ----
+const OFFER_KEY = 'kh_offers';
+const OFFER_ORIG = new Map<string, number>();
+const OFFER_NOW: { list: Offer[] } = { list: (() => { try { const v = JSON.parse(localStorage.getItem(OFFER_KEY) ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; } })() };
+function applyOffers(list: Offer[]) {
+    const on = new Set(list.map((o) => o.i));
+    for (const [id, orig] of OFFER_ORIG) if (!on.has(id)) { const it = BY_ID.get(id); if (it) it.p = orig; OFFER_ORIG.delete(id); }
+    for (const o of list) {
+        let it = BY_ID.get(o.i);
+        if (!it) { it = { i: o.i, n: o.n, p: o.o, c: o.c }; BY_ID.set(o.i, it); }
+        if (!OFFER_ORIG.has(o.i)) OFFER_ORIG.set(o.i, it.p === o.p ? o.o : it.p);
+        it.p = o.p;
+    }
+}
+catalogHooks.push(() => applyOffers(OFFER_NOW.list));
+function useOffers(): [Offer[], (l: Offer[]) => void] {
+    const [list, setList] = useState<Offer[]>(OFFER_NOW.list);
+    const put = (l: Offer[]) => { OFFER_NOW.list = l; applyOffers(l); setList(l); try { localStorage.setItem(OFFER_KEY, JSON.stringify(l)); } catch {} };
+    React.useEffect(() => {
+        let alive = true;
+        applyOffers(OFFER_NOW.list);
+        const load = () => { getOffers().then((r) => { if (alive && r) put(r); }).catch(() => {}); };
+        load();
+        const onVis = () => { if (document.visibilityState === 'visible') load(); };
+        document.addEventListener('visibilitychange', onVis);
+        return () => { alive = false; document.removeEventListener('visibilitychange', onVis); };
+    }, []);
+    return [list, put];
+}
+
+function OffersBand() {
+    const { setSelectedId } = useShop();
+    const [offers] = useOffers();
+    useCatalogVersion();
+    if (offers.length === 0) return null;
+    return <section className="kh-ofr" aria-label="عروض اليوم">
+        <div className="kh-off-head"><h2>عروض اليوم <em>· الأكثر توفيرًا</em></h2><span>أسعار لفترة محدودة</span></div>
+        <div className="kh-off-row">
+            {offers.map((o) => {
+                const off = Math.round(((o.o - o.p) / o.o) * 100);
+                return <div key={o.i} className="kh-off-card">
+                    {off >= 1 && <span className="kh-off-badge">وفر {off}%</span>}
+                    <button type="button" className="kh-off-photo" onClick={() => setSelectedId(o.i)} aria-label={o.n}><ProdImg c={o.c} i={o.i} loading="lazy" /></button>
+                    <button type="button" className="kh-off-name" onClick={() => setSelectedId(o.i)}>{o.n}</button>
+                    <div className="kh-off-price"><b><bdi>{fmtPrice(o.p)}</bdi> ج</b><s><bdi>{fmtPrice(o.o)}</bdi> ج</s></div>
+                    <AddButton id={o.i} />
+                </div>;
+            })}
+        </div>
+    </section>;
+}
+
+function AdminOffers() {
+    const [key] = useAdminKey();
+    const [offers, setOffers] = useOffers();
+    const [text, setText] = useState('');
+    const [state, setState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
+    const [draft, setDraft] = useState<Record<string, string>>({});
+    const res = text.trim() === '' ? [] : searchProducts(text, 8);
+    const save = (next: Offer[]) => {
+        setOffers(next);
+        setState('busy');
+        adminCall(key, 'offers-set', { list: next })
+            .then(() => { setState('ok'); window.setTimeout(() => setState('idle'), 1800); })
+            .catch(() => setState('err'));
+    };
+    const add = (p: CatalogItem) => {
+        if (offers.length >= 12 || offers.some((o) => o.i === p.i)) return;
+        const price = Math.max(0.5, Math.floor(p.p * 0.9 * 2) / 2);
+        save([...offers, { i: p.i, n: p.n, c: p.c, p: price, o: p.p }]);
+    };
+    const setPrice = (o: Offer) => {
+        const v = Number((draft[o.i] ?? '').replace(',', '.'));
+        setDraft((d) => { const n = { ...d }; delete n[o.i]; return n; });
+        if (!isFinite(v) || v <= 0 || v >= o.o) { setState('err'); return; }
+        save(offers.map((x) => x.i === o.i ? { ...x, p: v } : x));
+    };
+    return <>
+        <AdminTabs active="offers" />
+        <section className="kh-ftp">
+            <header className="kh-ftp-head">
+                <span className="kh-ftp-ico"><Icon name="star" size={22} /></span>
+                <div>
+                    <h2>عروض اليوم</h2>
+                    <p>اختار المنتج وحط سعر العرض. بيظهر في الرئيسية تحت الأقسام، والعميل بيدفع سعر العرض. لو مفيش عروض القسم بيختفي.</p>
+                </div>
+            </header>
+            <div className="kh-ftp-card">
+                <label className="kh-ftp-search">
+                    <Icon name="search" size={18} />
+                    <input type="search" name="kh_off_x7" autoComplete="off" readOnly onFocus={(e) => { e.currentTarget.readOnly = false; }} spellCheck={false} inputMode="search" value={text} onChange={(e) => setText(/^\+?\d{10,13}$/.test(e.target.value.trim()) ? '' : e.target.value)} placeholder="ابحث عن منتج عشان تعمله عرض..." aria-label="ابحث عن منتج" />
+                </label>
+                {res.length > 0 && <ul className="kh-ft-res">
+                    {res.map((p) => {
+                        const on = offers.some((o) => o.i === p.i);
+                        return <li key={p.i}>
+                            <span className="kh-ft-img"><ProdImg c={p.c} i={p.i} loading="lazy" /></span>
+                            <span className="kh-ft-name">{p.n}<small>{CAT_NAMES[p.c]} · {fmtPrice(OFFER_ORIG.get(p.i) ?? p.p)} ج.م</small></span>
+                            <button type="button" className={`kh-ft-add${on ? ' is-on' : ''}`} disabled={on} onClick={() => add(p)}>{on ? '✓ مضاف' : '+ عرض'}</button>
+                        </li>;
+                    })}
+                </ul>}
+            </div>
+            <div className="kh-ftp-sub">
+                <strong>العروض <b>{offers.length.toLocaleString('en-US')}</b> / 12</strong>
+                <span className="kh-ft-state">{state === 'busy' ? 'جاري الحفظ…' : state === 'ok' ? '✓ تم الحفظ' : state === 'err' ? 'تعذر الحفظ، السعر لازم يكون أقل من الأصلي' : ''}</span>
+            </div>
+            {offers.length === 0
+                ? <div className="kh-ftp-empty"><Icon name="star" size={28} /><span>مفيش عروض. قسم العروض مخفي في الرئيسية.</span></div>
+                : <ol className="kh-ft-list">
+                    {offers.map((o, i) => <li key={o.i}>
+                        <span className="kh-ft-n">{(i + 1).toLocaleString('en-US')}</span>
+                        <span className="kh-ft-img"><ProdImg c={o.c} i={o.i} loading="lazy" /></span>
+                        <span className="kh-ft-name">{o.n}<small>السعر الأصلي {fmtPrice(o.o)} ج.م</small></span>
+                        <span className="kh-ft-ctl">
+                            <input className="kh-off-in" inputMode="decimal" aria-label="سعر العرض" value={draft[o.i] ?? String(o.p)} onChange={(e) => setDraft((d) => ({ ...d, [o.i]: e.target.value }))} onBlur={() => { if (draft[o.i] !== undefined && draft[o.i] !== String(o.p)) setPrice(o); }} />
+                            <button type="button" className="kh-ft-btn kh-ft-del" aria-label="حذف" onClick={() => save(offers.filter((x) => x.i !== o.i))}>✕</button>
+                        </span>
+                    </li>)}
+                </ol>}
+        </section>
+    </>;
+}
+
 const FEAT_KEY = 'kh_featured';
 function readFeat(): string[] { try { const v = JSON.parse(localStorage.getItem(FEAT_KEY) ?? '[]'); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } }
 function useFeatured(): [string[], (ids: string[]) => void] {
@@ -910,8 +1034,8 @@ function Shop() {
         <Greeting />
         <CongratsBanner />
         <HeroCarousel />
-        <TrustStrip />
         <CategoryRow />
+        <OffersBand />
         <RxBanner />
         <CartBar />
         <div className="kh-grid-head" id="kh-grid">
@@ -1640,6 +1764,7 @@ function AdminTabs({ active }: { active: string }) {
         { to: '/admin/orders', label: 'الأوردرات', key: 'orders' },
         { to: '/admin/products', label: 'المنتجات', key: 'products' },
         { to: '/admin/featured', label: 'المميزة', key: 'featured' },
+        { to: '/admin/offers', label: 'العروض', key: 'offers' },
         { to: '/admin/photos', label: 'الصور', key: 'photos' },
         { to: '/admin/rx', label: 'الروشتات', key: 'rx' },
         { to: '/admin/notify', label: 'الإشعارات', key: 'notify' },
@@ -1951,6 +2076,7 @@ function applyOverrides(list: { id: string; price: number }[]): boolean {
     let changed = false;
     for (const o of list) {
         const it = BY_ID.get(o.id);
+        if (it && OFFER_ORIG.has(o.id)) { OFFER_ORIG.set(o.id, o.price); continue; }
         if (it && it.p !== o.price) { it.p = o.price; changed = true; }
     }
     return changed;
@@ -2097,6 +2223,7 @@ export function App() {
                         <Route path="/admin/rx" element={<AdminGate><AdminRx /></AdminGate>} />
                         <Route path="/admin/loyalty" element={<AdminGate><AdminLoyalty /></AdminGate>} />
                         <Route path="/admin/featured" element={<AdminGate><AdminFeatured /></AdminGate>} />
+                        <Route path="/admin/offers" element={<AdminGate><AdminOffers /></AdminGate>} />
                         <Route path="/admin/photos" element={<AdminGate><AdminPhotos /></AdminGate>} />
                         <Route path="/admin/notify" element={<AdminGate><AdminNotify /></AdminGate>} />
                         <Route path="/notifications" element={<NotificationsPage />} />

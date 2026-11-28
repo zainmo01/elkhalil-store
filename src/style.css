@@ -1880,3 +1880,23 @@ a, button { touch-action: manipulation; }
 .kh-brand-logo { background: transparent !important; padding: 0 !important; box-shadow: none !important; border-radius: 0 !important; width: 40px; height: 40px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.25)); }
 @media (min-width: 600px) { .kh-brand-logo { width: 46px; height: 46px; } }
 .kh-lg-logo { background: transparent !important; padding: 0 !important; box-shadow: none !important; border-radius: 0 !important; width: 96px; height: 96px; filter: drop-shadow(0 6px 14px rgba(0,0,0,.3)); }
+
+/* ===== Offers band ===== */
+.kh-ofr { margin: 18px calc(var(--kh-gutter, 18px) * -1) 6px; padding: 16px 0 18px; background: linear-gradient(160deg, #0b3c73, #1668c7); position: relative; overflow: hidden; border-radius: 0; }
+.kh-ofr:before { content: ""; position: absolute; left: -50px; top: -50px; width: 170px; height: 170px; border-radius: 50%; background: rgba(79,179,240,.22); pointer-events: none; }
+.kh-off-head { padding: 0 var(--kh-gutter, 18px) 12px; position: relative; }
+.kh-off-head h2 { margin: 0; color: #fff; font-size: 24px; font-weight: 800; }
+.kh-off-head h2 em { font-style: normal; color: #ffd84d; }
+.kh-off-head span { color: #cfe6fb; font-size: 13px; }
+.kh-off-row { display: flex; gap: 12px; overflow-x: auto; padding: 4px var(--kh-gutter, 18px) 8px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; position: relative; scrollbar-width: none; }
+.kh-off-row::-webkit-scrollbar { display: none; }
+.kh-off-card { flex: 0 0 156px; scroll-snap-align: start; background: #fff; border-radius: 18px; padding: 10px; position: relative; box-shadow: 0 8px 20px rgba(0,20,50,.28); display: flex; flex-direction: column; gap: 6px; }
+.kh-off-badge { position: absolute; top: 0; left: 0; z-index: 2; background: #ff4d4f; color: #fff; font-weight: 800; font-size: 13px; padding: 6px 10px; border-radius: 18px 0 14px 0; }
+.kh-off-photo { border: 0; background: none; padding: 0; width: 100%; height: 112px; border-radius: 12px; overflow: hidden; }
+.kh-off-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kh-off-name { border: 0; background: none; padding: 0; text-align: right; font: inherit; font-size: 13.5px; font-weight: 700; line-height: 1.35; height: 36px; overflow: hidden; color: #0b2545; }
+.kh-off-price { display: flex; align-items: baseline; gap: 6px; }
+.kh-off-price b { font-size: 18px; color: #0b3c73; font-weight: 800; }
+.kh-off-price s { font-size: 12px; color: #8a97a8; }
+.kh-off-in { width: 72px; padding: 6px 8px; border: 1.5px solid #bcd3ea; border-radius: 10px; font: inherit; text-align: center; }
+@media (min-width: 900px) { .kh-ofr { margin-inline: 0; border-radius: 18px; } .kh-off-card { flex-basis: 190px; } .kh-off-photo { height: 140px; } }
