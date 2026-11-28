@@ -1,7 +1,9 @@
 // Generated from the pharmacy's real item file - customer-safe fields only (id, name, sell price, category). Never add cost or tax data here.
 // The catalog is split: a small head file loads before the first paint, the rest streams in the background.
 import React from 'react';
-export type CatalogItem = { i: string; n: string; p: number; c: number };
+export type CatalogItem = { i: string; n: string; p: number; c: number; a?: 1 };
+/** In stock at the pharmacy (from the stock report). Everything else shows غير متاح and can't be added to the cart. */
+export const inStock = (id: string): boolean => BY_ID.get(id)?.a === 1;
 import headUrl from './catalog/head.json?url';
 const partUrls = import.meta.glob('./catalog/part-*.json', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
 

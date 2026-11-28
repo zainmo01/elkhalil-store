@@ -31,7 +31,7 @@ import c4_2 from './photos/cat/c4_2.webp';
 
 // ===== REAL CATALOG (loaded from the pharmacy's item file) =====
 // catalog.ts holds customer-safe fields only: id, name, sell price, category.
-import { CATALOG, BY_ID, useCatalogVersion, isCatalogReady, catalogHooks, live, refreshCatalog } from './catalog';
+import { CATALOG, BY_ID, inStock, useCatalogVersion, isCatalogReady, catalogHooks, live, refreshCatalog } from './catalog';
 import type { CatalogItem } from './catalog';
 
 const CAT_NAMES = ['الأدوية', 'العناية', 'الفيتامينات', 'الأم والطفل', 'أجهزة طبية'];
@@ -64,9 +64,9 @@ type Cart = Record<string, number>;
 function useCartState() {
     const [cart, setCart] = useState<Cart>({});
     return useMemo(() => ({
-        count: Object.values(cart).reduce((a, b) => a + b, 0),
-        total: Object.entries(cart).reduce((sum, [id, qty]) => sum + (BY_ID.get(id)?.p ?? 0) * qty, 0),
-        add: (id: string, qty = 1) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + qty })),
+        count: Object.entries(cart).reduce((a, [id, q]) => a + (inStock(id) ? q : 0), 0),
+        total: Object.entries(cart).reduce((sum, [id, qty]) => sum + (inStock(id) ? (BY_ID.get(id)?.p ?? 0) * qty : 0), 0),
+        add: (id: string, qty = 1) => { if (!inStock(id)) return; setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + qty })); },
         set: (id: string, qty: number) => setCart((c) => {
             const next = { ...c };
             if (qty <= 0) delete next[id]; else next[id] = qty;
@@ -77,7 +77,7 @@ function useCartState() {
         raw: cart,
         items: () => Object.entries(cart).flatMap(([id, qty]) => {
             const product = BY_ID.get(id);
-            return product ? [{ product, qty }] : [];
+            return product && product.a === 1 ? [{ product, qty }] : [];
         }),
     }), [cart]);
 }
@@ -635,8 +635,10 @@ function SuggAdd({ id }: { id: string }) {
 
 function AddButton({ id }: { id: string }) {
     const cart = useCart();
+    useCatalogVersion();
     const [added, setAdded] = useState(false);
     const timer = useRef<number | undefined>(undefined);
+    if (!inStock(id)) return <button type="button" className="kh-add kh-add-off" disabled>غير متاح حالياً</button>;
     return <button
         type="button"
         className={`kh-add${added ? ' is-added' : ''}`}
@@ -710,17 +712,18 @@ function ProductCard({ p }: { p: CatalogItem }) {
     const feat = FEAT_SET.s.has(p.i);
     useOfferVer();
     const dp = discPct(p.i), was = OFFER_ORIG.get(p.i);
-    return <div className={`kh-card${feat ? ' is-feat' : ''}`}>
+    return <div className={`kh-card${feat ? ' is-feat' : ''}${p.a === 1 ? '' : ' is-off'}`}>
         <button type="button" className="kh-card-photo kh-card-tile" onClick={() => setSelectedId(p.i)} aria-label={p.n}>
             <img className={ok ? 'is-ok' : ''} src={usePhotoSrc(p.c, p.i)} alt="" loading="lazy" decoding="async" onLoad={() => setOk(true)} ref={(el) => { if (el && el.complete && !ok) setOk(true); }} />
             {feat && <span className="kh-badge-feat"><Icon name="star" size={12} /> مختار</span>}
-            {dp >= 1 && <span className="kh-disc">خصم {dp}%</span>}
+            {dp >= 1 && p.a === 1 && <span className="kh-disc">خصم {dp}%</span>}
+            {p.a !== 1 && <span className="kh-na">غير متاح</span>}
             <span className={`kh-badge-free${dp >= 1 ? ' is-low' : ''}`}><Icon name="truck" size={12} /> مجاني</span>
         </button>
         <div className="kh-card-body">
             <span className="kh-card-unit">{CAT_NAMES[p.c]}</span>
             <button type="button" className="kh-card-name kh-name-btn" onClick={() => setSelectedId(p.i)}>{p.n}</button>
-            <span className="kh-card-price"><bdi>{fmtPrice(p.p)}</bdi> <small>ج.م</small>{dp >= 1 && was !== undefined && <s className="kh-was"><bdi>{fmtPrice(was)}</bdi></s>}</span>
+            <span className="kh-card-price"><bdi>{fmtPrice(p.p)}</bdi> <small>ج.م</small>{dp >= 1 && p.a === 1 && was !== undefined && <s className="kh-was"><bdi>{fmtPrice(was)}</bdi></s>}</span>
             <AddButton id={p.i} />
         </div>
     </div>;
@@ -890,7 +893,7 @@ function applyOffers(list: Offer[]) {
     for (const [id] of OFFER_ORIG) if (!on.has(id)) { const it = BY_ID.get(id); const b = OFFER_BASE.get(id); if (it && b !== undefined) it.p = b; OFFER_ORIG.delete(id); OFFER_BASE.delete(id); }
     for (const o of list) {
         let it = BY_ID.get(o.i);
-        if (!it) { if (!o.n) continue; it = { i: o.i, n: o.n, p: o.o, c: o.c }; BY_ID.set(o.i, it); }
+        if (!it) { if (!o.n) continue; it = { i: o.i, n: o.n, p: o.o, c: o.c, a: 1 }; BY_ID.set(o.i, it); }
         if (!OFFER_BASE.has(o.i)) OFFER_BASE.set(o.i, it.p);
         OFFER_ORIG.set(o.i, o.o);
         it.p = o.p;
@@ -919,7 +922,7 @@ function OffersBand() {
     const { setSelectedId } = useShop();
     const [offers] = useOffers();
     useCatalogVersion();
-    const shown = offers.filter((o) => o.n).slice(0, 12);
+    const shown = offers.filter((o) => o.n && inStock(o.i)).slice(0, 12);
     if (shown.length === 0) return null;
     return <section className="kh-ofr" aria-label="عروض اليوم">
         <div className="kh-off-head"><h2>عروض اليوم <em>· الأكثر توفيرًا</em></h2><span>أسعار لفترة محدودة</span></div>
@@ -1049,7 +1052,8 @@ function Shop() {
         return b;
     }, [cat, q, catVer]);
     // Admin-curated picks first, in the admin's order; the rest keeps today's order. Only the visible page is built.
-    const picks = q === '' ? featIds.map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p && (cat === 'الكل' || p.c === ci)) : [];
+    const picks0 = q === '' ? featIds.map((id) => BY_ID.get(id)).filter((p): p is CatalogItem => !!p && (cat === 'الكل' || p.c === ci)) : [];
+    const picks = [...picks0.filter((p) => p.a === 1), ...picks0.filter((p) => p.a !== 1)];
     const ps = new Set(picks.map((p) => p.i));
     const visible: CatalogItem[] = picks.slice(0, limit);
     for (let k = 0; k < base.length && visible.length < limit; k++) if (!ps.has(base[k].i)) visible.push(base[k]);
@@ -1323,7 +1327,8 @@ function ProductPage({ id }: { id: string }) {
         <ScrollTop key={id} />
         <div className="kh-pdp-stage">
             <span className="kh-pdp-badge">{CAT_NAMES[product.c]}</span>
-            {discPct(product.i) >= 1 && <span className="kh-disc kh-disc-lg">خصم {discPct(product.i)}%</span>}
+            {product.a !== 1 && <span className="kh-na kh-na-lg">غير متاح حالياً</span>}
+            {product.a === 1 && discPct(product.i) >= 1 && <span className="kh-disc kh-disc-lg">خصم {discPct(product.i)}%</span>}
             <div className="kh-pdp-photo"><ProdImg c={product.c} i={product.i} alt={product.n} /></div>
         </div>
         {adminKeyPdp !== '' && <PhotoBtn id={product.i} />}
@@ -1333,10 +1338,10 @@ function ProductPage({ id }: { id: string }) {
             <strong>{avg.toFixed(1)}</strong>
             <span>({reviews.length.toLocaleString('en-US')} تقييمات)</span>
         </div>
-        <p className="kh-detail-price">{egp(product.p)}{discPct(product.i) >= 1 && <><s className="kh-was kh-was-lg">{egp(OFFER_ORIG.get(product.i) ?? product.p)}</s><em className="kh-save">وفرت {egp((OFFER_ORIG.get(product.i) ?? product.p) - product.p)}</em></>}</p>
+        <p className="kh-detail-price">{egp(product.p)}{product.a === 1 && discPct(product.i) >= 1 && <><s className="kh-was kh-was-lg">{egp(OFFER_ORIG.get(product.i) ?? product.p)}</s><em className="kh-save">وفرت {egp((OFFER_ORIG.get(product.i) ?? product.p) - product.p)}</em></>}</p>
         <div className="kh-pdp-perks">
             <span><Icon name="truck" size={16} /> توصيل مجاني</span>
-            <span><Icon name="shield" size={16} /> متاح للطلب</span>
+            <span><Icon name="shield" size={16} /> {product.a === 1 ? 'متاح للطلب' : 'غير متاح حالياً'}</span>
             <span><Icon name="star" size={16} /> نقاط ولاء</span>
         </div>
         <div className="kh-qty-row">
@@ -1345,13 +1350,13 @@ function ProductPage({ id }: { id: string }) {
                 <span>{qty.toLocaleString('en-US')}</span>
                 <button type="button" aria-label="قلل الكمية" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
             </div>
-            <button type="button" className={`kh-confirm${pdpAdded ? ' is-added' : ''}`} onClick={() => {
+            <button type="button" disabled={product.a !== 1} className={`kh-confirm${pdpAdded ? ' is-added' : ''}`} onClick={() => {
                 cart.add(product.i, qty);
                 setPdpAdded(true);
                 window.clearTimeout(pdpTimer.current);
                 pdpTimer.current = window.setTimeout(() => setPdpAdded(false), 1600);
             }}>
-                {pdpAdded ? '✓ اتضاف في السلة' : <>أضف للسلة — {egp(product.p * qty)}</>}
+                {product.a !== 1 ? 'غير متاح حالياً' : pdpAdded ? '✓ اتضاف في السلة' : <>أضف للسلة — {egp(product.p * qty)}</>}
             </button>
         </div>
 
@@ -1361,7 +1366,7 @@ function ProductPage({ id }: { id: string }) {
             <div><dt>الفئة</dt><dd>{CAT_NAMES[product.c]}</dd></div>
             <div><dt>كود الصنف</dt><dd><bdi>{product.i}</bdi></dd></div>
             <div><dt>السعر</dt><dd>{egp(product.p)}</dd></div>
-            <div><dt>التوفر</dt><dd>متاح للطلب من الصيدلية</dd></div>
+            <div><dt>التوفر</dt><dd>{product.a === 1 ? 'متاح للطلب من الصيدلية' : 'غير متاح حالياً'}</dd></div>
             <div><dt>التوصيل</dt><dd>مجاني — 24 ساعة</dd></div>
         </dl>
         <div className="kh-pdp-note"><Icon name="stetho" size={20} /> لأي استفسار عن الاستخدام أو البدائل، الصيدلي بيرد عليك بعد الطلب.</div>

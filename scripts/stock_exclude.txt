@@ -1,0 +1,1 @@
+# ids to keep available at their old price, one per line
