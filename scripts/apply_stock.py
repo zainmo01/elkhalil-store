@@ -32,13 +32,18 @@ else:
             y['a'] = 1; out_av.append(y)
         elif x['i'] in excl: y['a'] = 1; out_av.append(y)
         else: out_un.append(y)
-    out = out_av + out_un
+    # report items that the catalog doesn't have yet are added as available (id = report code). Category from
+    # scripts/new_item_categories.json (hand-checked); anything missing there goes to الأدوية (0).
+    newcat = json.load(open(f'{S}/new_item_categories.json')) if os.path.exists(f'{S}/new_item_categories.json') else {}
+    added = [{'i': c, 'n': n, 'p': round(p, 2), 'c': int(newcat.get(c, 0)), 'a': 1} for c, (p, n) in rep.items() if c not in ids and p > 0 and c not in excl]
+    out = out_av + added + out_un
     with open(f'{S}/stock_unmatched.csv', 'w', encoding='utf-8-sig', newline='') as f:
         w = csv.writer(f); w.writerow(['code', 'name', 'sell_price'])
         for c, (p, n) in rep.items():
             if c not in ids: w.writerow([c, n, p])
-    print('report rows', len(rep), 'matched', sum(1 for c in rep if c in ids), 'unmatched', sum(1 for c in rep if c not in ids))
+    print('added new items', len(added)); print('report rows', len(rep), 'matched', sum(1 for c in rep if c in ids), 'unmatched', sum(1 for c in rep if c not in ids))
 json.dump(out, open(cur, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 subprocess.run(['python3', f'{S}/split_catalog.py'], check=True)
 old = {x['i']: x['p'] for x in cat}
-print('available', sum(1 for x in out if x.get('a')), 'unavailable', sum(1 for x in out if not x.get('a')), 'prices changed', sum(1 for x in out if abs(x['p'] - old[x['i']]) > 0.001))
+old_ids = set(old)
+print('available', sum(1 for x in out if x.get('a')), 'unavailable', sum(1 for x in out if not x.get('a')), 'prices changed', sum(1 for x in out if x['i'] in old and abs(x['p'] - old[x['i']]) > 0.001))
